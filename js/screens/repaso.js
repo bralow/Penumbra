@@ -16,7 +16,7 @@ export async function render(main) {
   const total = q.reviews.length + q.fresh.length;
   const mins = Math.max(1, Math.round((total + q.counts.learning) * 8 / 60));
 
-  main.append(h('div', { class: 'between' }, h('h1', {}, 'Penumbra'), newCardButton()));
+  main.append(h('div', { class: 'between' }, h('h1', { style: 'display:flex;align-items:center;gap:10px' }, h('img', { src: 'icons/logo.svg', alt: '', width: '34', height: '36', style: 'filter:drop-shadow(0 0 6px rgba(42,180,214,.55))' }), 'Penumbra'), newCardButton()));
   main.append(h('section', { class: 'hero', style: 'gap:10px' },
     h('div', { class: 'between' }, h('span', { class: 'kicker' }, 'REPASO DE HOY'), total ? h('span', { class: 'small', style: 'opacity:.8' }, `≈ ${mins} min`) : ''),
     h('div', { style: 'display:flex;align-items:baseline;gap:10px' },

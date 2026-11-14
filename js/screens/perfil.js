@@ -191,7 +191,8 @@ export async function render(main) {
     h('h3', { class: 'muted', style: 'font-size:13px;font-weight:700;letter-spacing:.08em' }, 'CRÉDITOS'),
     h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Audio: corpus de español argentino de OpenSLR (Google), con licencia ',
       h('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), '.'),
-    h('p', { class: 'muted small' }, `Versión ${APP_VERSION}`)));
+    h('div', { class: 'row', style: 'gap:10px;margin-top:6px' }, h('img', { src: 'icons/logo.svg', alt: '', width: '26', height: '28', style: 'filter:drop-shadow(0 0 5px rgba(42,180,214,.5))' }),
+      h('p', { class: 'muted small' }, `Penumbra · versión ${APP_VERSION}`))));
 }
 
 // Sync and backup (FE-01): Google Drive keeps devices identical; the backup file works anywhere, offline.

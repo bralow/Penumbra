@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.13-n (tarjetas de LenguaTube)';
+export const APP_VERSION = '2026.11.14-a (logo nuevo · tarjetas de LenguaTube)';
 import { h } from './ui.js';
 
 applyTheme();
