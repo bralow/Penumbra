@@ -25,10 +25,11 @@ export async function importInbox(data) {
   for (const n of data.notes) {
     const front = String(n.front || '').trim();
     if (!front) continue;
-    const ja = n.lang === 'ja';
-    const deck = String(n.deck || (ja ? 'LenguaTube · Japonés' : 'LenguaTube')).slice(0, 60);
-    // Japanese: reading and rōmaji in the IPA line (Penumbra's IPA is for Rioplatense Spanish).
-    const ipa = ja ? (n.ipa || ' ') : (n.ipa || undefined);
+    const ja = n.lang === 'ja', fr = n.lang === 'fr';
+    const deck = String(n.deck || (ja ? 'LenguaTube · Japonés' : fr ? 'LenguaTube · Francés' : 'LenguaTube')).slice(0, 60);
+    // Japanese: reading and rōmaji in the IPA line; French: Wiktionary's IPA. Penumbra's own IPA is
+    // for Rioplatense Spanish, so it only fills in Spanish cards.
+    const ipa = ja || fr ? (n.ipa || ' ') : (n.ipa || undefined);
     const meaning = [n.meaning, n.extra].filter(Boolean).join(' · ');
     const types = n.kind === 'listening' ? ['escuchar'] : undefined; // otherwise Penumbra picks, as for its own saves
     const cards = await addNote({
@@ -36,7 +37,7 @@ export async function importInbox(data) {
       back: n.back || '',
       meaning,
       ipa,
-      tag: ja ? '#LenguaTubeJA' : '#LenguaTube',
+      tag: ja ? '#LenguaTubeJA' : fr ? '#LenguaTubeFR' : '#LenguaTube',
       deck,
       audio: n.audio ? dataUrlToBlob(n.audio) : undefined,
       source: { kind: 'video', label: n.label || 'LenguaTube', url: n.url || '', t: n.t || 0 },
