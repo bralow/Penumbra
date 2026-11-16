@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LenguaTube privacy policy</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; font: 16px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; background: Canvas; color: CanvasText; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 22px 64px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 34px 0 8px; }
+  .muted { opacity: .7; font-size: 14px; }
+  .summary { border-left: 4px solid #74acdf; padding: 10px 16px; margin: 22px 0; background: color-mix(in srgb, #74acdf 10%, Canvas); border-radius: 0 8px 8px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 10px 0; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid color-mix(in srgb, CanvasText 18%, Canvas); }
+  th { font-weight: 600; }
+  ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LenguaTube privacy policy</h1>
+  <p class="muted">Effective November 15, 2026</p>
+
+  <div class="summary">
+    <strong>In short:</strong> LenguaTube keeps everything on your computer. The developer has no server and receives none of your data. There are no ads, no analytics and no tracking, and nothing is sold. Your information leaves your computer only when you use an optional feature that needs another service (such as Gemini voices or Google Drive backups), and then it goes straight from your browser to that service.
+  </div>
+
+  <h2>What LenguaTube is</h2>
+  <p>LenguaTube is a Chrome extension for learning languages (Spanish, Japanese, French, Italian and English). It shows interactive subtitles on YouTube, Prime Video, Netflix and Crunchyroll, swaps some words on web pages into the language you're learning, and offers practice exercises and flashcard export.</p>
+
+  <h2>What is stored, and where</h2>
+  <p>All of the following is stored only in your browser on your computer (Chrome extension storage and IndexedDB):</p>
+  <ul>
+    <li>Your settings, levels and display preferences.</li>
+    <li>Words and sentences you save, words you mark as known, practice results and daily goals.</li>
+    <li>For saved items: the sentence they came from, and the video or page title and link, so you can go back to them.</li>
+    <li>A short list of recent videos you watched with LenguaTube on (title and ID), used for scores and practice topics.</li>
+    <li>Dictionaries and word lists you choose to install.</li>
+    <li>Any API keys you enter (Gemini, Azure). Keys are never put into backup files.</li>
+  </ul>
+  <p>Uninstalling the extension deletes this data from Chrome.</p>
+
+  <h2>Web pages you visit</h2>
+  <p>To swap words on web pages, LenguaTube reads the text of the page in your browser. That text is translated by Chrome's built-in translator, which runs on your computer. Page text is not sent to the developer or to any online service. If you save a swapped word, its sentence, the page title and address are stored locally with it. You can turn word swaps off entirely, or for any site.</p>
+
+  <h2>Services LenguaTube connects to</h2>
+  <table>
+    <thead><tr><th>Service</th><th>When</th><th>What is sent</th></tr></thead>
+    <tbody>
+      <tr><td>YouTube, Prime Video, Netflix, Crunchyroll</td><td>When you watch a video with LenguaTube on</td><td>Requests for that video's subtitle files, as the site's own player would make. LenguaTube does not read or send your account details on these sites.</td></tr>
+      <tr><td>Google Gemini API</td><td>Only if you add your own Gemini key and use EcoVoz or Gemini voices</td><td>For EcoVoz: your chosen level, the saved words you leave selected (with meanings) and recent video titles, so it can write practice for you. For voices: the word or sentence to be spoken. Sent with your key, under Google's terms. On Gemini's free tier Google may use this content to improve its products.</td></tr>
+      <tr><td>Microsoft Azure Speech</td><td>Only if you add your own Azure key and choose Azure voices</td><td>The word or sentence to be spoken, sent with your key.</td></tr>
+      <tr><td>Google Drive</td><td>Only if you turn on Drive backups and sign in</td><td>Your backup file, uploaded to your own Drive (LenguaTube can only see files it created there). Keys are not in the backup.</td></tr>
+      <tr><td>Penumbra (through Google Drive)</td><td>Only if you turn on “Send new cards to Penumbra” and sign in</td><td>The flashcards you make, written to Penumbra's private app folder in your own Google Drive, where the Penumbra app picks them up. Nothing is sent to the developer.</td></tr>
+      <tr><td>Anki (AnkiConnect)</td><td>Only when you send cards to Anki</td><td>The cards, sent to the Anki app on your own computer (not over the internet).</td></tr>
+      <tr><td>Dictionary and level-list sources (kaikki.org, GitHub, cental.uclouvain.be)</td><td>Only when you install a dictionary or word list</td><td>A normal file download. Nothing about you is sent.</td></tr>
+      <tr><td>Wikimedia</td><td>When you play a recorded pronunciation</td><td>A normal request for that audio file.</td></tr>
+    </tbody>
+  </table>
+  <p>Buttons that open outside dictionaries (such as WordReference, RAE, Larousse, Treccani, Merriam-Webster, Jisho or Weblio) simply open that website in a new tab with the word you chose.</p>
+
+  <h2>What the developer receives</h2>
+  <p>Nothing. LenguaTube has no developer-run server, account system, analytics or crash reporting. Your data is not sold, shared with advertisers, or used for anything other than the features described here.</p>
+
+  <h2>Your control</h2>
+  <ul>
+    <li>Export, back up, restore or delete your data from LenguaTube Settings → Your data and backups.</li>
+    <li>Remove an API key at any time in Settings; the optional services above then stop.</li>
+    <li>Disconnect Google Drive from your Google Account's security settings (third-party access).</li>
+  </ul>
+
+  <h2>Children</h2>
+  <p>LenguaTube is not directed at children under 13 and does not knowingly collect information from them.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy changes, the new version will be posted here with a new effective date.</p>
+
+  <h2>Contact</h2>
+  <p>Questions: use the support link on LenguaTube's Chrome Web Store page.</p>
+</main>
+</body>
+</html>
