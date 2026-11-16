@@ -3,7 +3,7 @@
 // (cache-busting query, so GitHub's CDN can't hand back a stale copy). The app then runs
 // entirely from that snapshot, so old and new files can never mix. When sw.js changes,
 // the browser installs the new snapshot, swaps it in, and the page reloads once.
-const VERSION = '2026.11.14-c';
+const VERSION = '2026.11.15-a';
 const CACHE = 'cadencia-' + VERSION;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
@@ -49,6 +49,8 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(caches.open('cadencia-vendor').then((c) => c.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }))));
     return;
   }
+  // Pages that aren't part of the app (the LenguaTube privacy policy) always come from the web.
+  if (new URL(req.url).pathname.indexOf('/lenguatube/') !== -1) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const hit = await cache.match(req, { ignoreSearch: true }) || (req.mode === 'navigate' ? await cache.match('./') : null);

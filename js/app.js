@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.14-c (tarjetas de italiano e inglés desde LenguaTube)';
+export const APP_VERSION = '2026.11.15-a (página de privacidad de LenguaTube)';
 import { h } from './ui.js';
 
 applyTheme();
