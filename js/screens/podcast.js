@@ -47,7 +47,7 @@ function listView(main, eps) {
   if (!eps.length) {
     main.append(h('section', { class: 'card empty' },
       h('h2', {}, 'Todavía no hay episodios'),
-      h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Prepará los episodios en la computadora con prepare_podcast.py y después importá cada archivo argentalk-1.zip, argentalk-2.zip… acá o en Perfil.')),
+      h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Prepará los episodios en la computadora con prepare_podcast.py y después importá cada archivo argentalk-1.zip, argentalk-2.zip… acá o en Ajustes.')),
     importCard());
     return () => {};
   }

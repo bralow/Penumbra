@@ -40,7 +40,7 @@ export async function render(main) {
     input,
     h('div', { class: 'between' }, count, check)));
   if (!geminiReady()) {
-    main.append(h('p', { class: 'muted small', style: 'text-align:center' }, 'Sin clave de Gemini solo reviso el voseo. ', h('a', { href: '#/perfil' }, 'Agregar la clave en Perfil')));
+    main.append(h('p', { class: 'muted small', style: 'text-align:center' }, 'Sin clave de Gemini solo reviso el voseo. ', h('a', { href: '#/perfil' }, 'Agregar la clave en Ajustes')));
   }
 
   const result = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });

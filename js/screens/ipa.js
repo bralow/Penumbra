@@ -1,5 +1,4 @@
-import { h, toast, shuffle } from '../ui.js';
-import { readTabs } from './leer.js';
+import { h, toast, shuffle, pageHead, wide } from '../ui.js';
 import { SOUNDS, CONFUSABLE, WORDS } from '../ipadata.js';
 import { transcribe } from '../ipa.js';
 import { log, discover, TRACKED } from '../progress.js';
@@ -34,8 +33,17 @@ function highlight(word, symbol) {
 }
 
 function soundboard(root) {
-  const detail = h('section', { class: 'hero', hidden: true, 'aria-live': 'polite', style: 'padding:16px 18px;gap:8px' });
+  const isWide = wide();
+  const detail = h('section', { class: 'hero', hidden: !isWide, 'aria-live': 'polite', style: 'padding:16px 18px;gap:8px' });
+  if (isWide) detail.append(h('span', { class: 'kicker' }, 'ARTICULACIÓN'), h('p', { style: 'font-size:15px;line-height:1.45' }, 'Tocá un sonido del tablero para ver dónde y cómo se hace, con ejemplos para escuchar.'));
   const groups = [...new Set(SOUNDS.map((x) => x.group))];
+  const page = root;
+  if (isWide) {
+    const boardCol = h('section', { class: 'card', style: 'gap:10px;padding:20px' });
+    page.append(h('div', { class: 'cols board-side' }, boardCol, h('div', { class: 'col sticky' }, detail)));
+    root = boardCol;
+    root.append(h('div', { class: 'between' }, h('h2', { style: 'font-size:17px' }, `Tablero de sonidos (${SOUNDS.length})`), h('span', { class: 'tag' }, 'Porteño')));
+  }
   root.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Todos los sonidos del español rioplatense. Los marcados con ', h('b', { style: 'color:var(--accent)' }, '●'), ' son los que delatan el acento porteño. Tocá uno para ver cómo se hace.'));
   for (const g of groups) {
     root.append(h('h3', { style: 'font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:4px' }, g.toUpperCase()));
@@ -61,12 +69,12 @@ function soundboard(root) {
           })),
           h('p', { class: 'small', style: 'opacity:.8' }, 'Tocá un ejemplo para escucharlo.'));
         detail.hidden = false;
-        detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (!isWide) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       };
       return b;
     })));
   }
-  root.append(detail);
+  if (!isWide) root.append(detail);
 }
 
 // Side view of the mouth for one sound, with what to notice.
@@ -87,7 +95,7 @@ function transformer(root) {
     style: 'min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;width:100%' });
   const go = h('button', { type: 'button', class: 'btn' }, 'Transformar');
   const listen = h('button', { type: 'button', class: 'pill', style: 'min-height:44px' }, '▶ Escuchar');
-  const out = h('div', { style: 'display:flex;flex-direction:column;gap:10px' });
+  const out = h('div', { style: wide() ? 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start' : 'display:flex;flex-direction:column;gap:10px' });
   const EXAMPLES = ['yo me llamo Guillermo', 'los chicos están en la playa', 'un vaso de agua', 'desde ayer', 'mis amigos'];
   const chips = EXAMPLES.map((e) => { const b = h('button', { type: 'button', class: 'pill', style: 'min-height:34px;font-size:12px' }, e); b.onclick = () => { input.value = e; run(); }; return b; });
   root.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Escribí una palabra o una frase y mirá cómo se convierte, regla por regla, en cómo suena en Buenos Aires.'),
@@ -103,7 +111,7 @@ function transformer(root) {
     const r = steps(text);
     let n = 0;
     out.replaceChildren(
-      h('section', { class: 'card', style: 'gap:6px' }, h('span', { class: 'kicker' }, 'ESCRITO'),
+      h('section', { class: 'card', style: 'gap:6px;grid-column:1/-1' }, h('span', { class: 'kicker' }, 'ESCRITO'),
         h('p', { style: 'font-size:20px;font-family:var(--display)' }, text),
         h('p', { class: 'muted small' }, 'Sílabas (en mayúscula, la que lleva el acento): ', h('b', {}, r.spelled))),
       ...r.steps.map((st) => {
@@ -113,7 +121,7 @@ function transformer(root) {
           st.applies ? ipaLine(st.ipa, st.marks) : '',
           h('p', { class: 'small', style: 'line-height:1.45' }, st.explain));
       }),
-      h('section', { class: 'hero', style: 'gap:6px' }, h('span', { class: 'kicker' }, 'ASÍ SUENA EN BUENOS AIRES'), h('p', { class: 'ipa', style: 'font-size:24px;color:var(--gold)' }, r.final)));
+      h('section', { class: 'hero', style: 'gap:6px;grid-column:1/-1' }, h('span', { class: 'kicker' }, 'ASÍ SUENA EN BUENOS AIRES'), h('p', { class: 'ipa', style: 'font-size:24px;color:var(--gold)' }, r.final)));
     log('transformar', { words: text.split(/\s+/).length });
   }
   go.onclick = run;
@@ -223,13 +231,13 @@ function encodeGame(root) {
 }
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, readTabs('ipa')));
   const tabs = MODES.map(([k, label]) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(k === mode) }, label));
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   tabs.forEach((b, i) => { b.onclick = () => { mode = MODES[i][0]; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); draw(); }; });
-  main.append(h('div', { class: 'seg scroll', role: 'group', 'aria-label': 'Modo' }, tabs), body);
+  main.append(pageHead(`FONÉTICA RIOPLATENSE · ${SOUNDS.length} SONIDOS`, 'IPA y pronunciación', h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs)), body);
   function draw() {
     body.replaceChildren();
+    body.style.maxWidth = wide() && (mode === 'descifrar' || mode === 'escribir') ? '760px' : '';
     stopPhone();
     if (mode === 'simbolos') soundboard(body);
     else if (mode === 'transformar') transformer(body);

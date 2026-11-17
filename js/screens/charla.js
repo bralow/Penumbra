@@ -23,8 +23,8 @@ export async function render(main) {
   main.append(h('div', { class: 'between' }, practiceTabs('charla')));
   if (!geminiReady()) {
     main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Falta la clave de Gemini'),
-      h('p', { class: 'muted small' }, 'La charla usa Gemini. Pegá tu clave en Perfil y tocá “Guardar y probar”.'),
-      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Perfil')));
+      h('p', { class: 'muted small' }, 'La charla usa Gemini. Pegá tu clave en Ajustes y tocá “Guardar y probar”.'),
+      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Ajustes')));
     return () => {};
   }
   let p = prefs();

@@ -55,3 +55,13 @@ export function shuffle(arr) {
   }
   return a;
 }
+
+// Page title block used by the wide layout: small coloured kicker, big title, actions on the right.
+export function pageHead(kicker, title, ...actions) {
+  return h('div', { class: 'page-head' },
+    h('div', {}, h('span', { class: 'kicker' }, kicker), h('h1', {}, title)),
+    actions.flat().filter(Boolean).length ? h('div', { class: 'actions' }, ...actions.flat().filter(Boolean)) : null);
+}
+
+// True when the PC layout (side menu, several columns) is showing.
+export const wide = () => window.matchMedia('(min-width: 1024px)').matches;

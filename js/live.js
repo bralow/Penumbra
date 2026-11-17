@@ -35,7 +35,7 @@ export class LiveSession {
   // history: earlier turns, so a reconnect keeps the thread of the conversation.
   async start({ system, voice, mic = true, history = [] }) {
     const { key } = getGemini();
-    if (!key) throw new Error('Falta la clave de Gemini (Perfil → Gemini).');
+    if (!key) throw new Error('Falta la clave de Gemini (Ajustes → Gemini).');
     this.stopped = false;
     // Created before any await, while we're still inside the user's tap: Android only lets a page
     // start sound from a gesture, and a context made later stays muted.

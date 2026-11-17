@@ -1,7 +1,8 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.15-a (página de privacidad de LenguaTube)';
+export const APP_VERSION = '2026.11.17-a (diseño ancho para la PC)';
 import { h } from './ui.js';
+import * as shell from './shell.js';
 
 applyTheme();
 // Coming back from Google's sign-in page: save the key, clean the address, then sync.
@@ -15,8 +16,10 @@ import('./sync.js').then((m) => {
   m.startAutoSync();
 }).catch(() => { if (fromGoogle) route(); });
 
+// tab = which entry of the side menu lights up.
 const routes = {
   hoy: { tab: 'hoy', load: () => import('./screens/hoy.js') },
+  practicar: { tab: 'practicar', load: () => import('./screens/practicar.js') },
   sombra: { tab: 'practicar', load: () => import('./screens/sombra.js') },
   vos: { tab: 'practicar', load: () => import('./screens/vos.js') },
   charla: { tab: 'practicar', load: () => import('./screens/charla.js') },
@@ -25,40 +28,43 @@ const routes = {
   oido: { tab: 'practicar', load: () => import('./screens/oido.js') },
   trabalenguas: { tab: 'practicar', load: () => import('./screens/trabalenguas.js') },
   elision: { tab: 'practicar', load: () => import('./screens/elision.js') },
-  cognados: { tab: 'practicar', load: () => import('./screens/cognados.js') },
+  cognados: { tab: 'cognados', load: () => import('./screens/cognados.js') },
   cultura: { tab: 'hoy', load: () => import('./screens/cultura.js') },
   calentamiento: { tab: 'hoy', load: () => import('./screens/calentamiento.js') },
   progreso: { tab: 'hoy', load: () => import('./screens/progreso.js') },
-  leer: { tab: 'leer', load: () => import('./screens/leer.js') },
-  lunfardo: { tab: 'leer', load: () => import('./screens/lunfardo.js') },
-  podcast: { tab: 'leer', load: () => import('./screens/podcast.js') },
-  canciones: { tab: 'leer', load: () => import('./screens/canciones.js') },
-  ipa: { tab: 'leer', load: () => import('./screens/ipa.js') },
-  libros: { tab: 'leer', load: () => import('./screens/libros.js') },
-  recetas: { tab: 'leer', load: () => import('./screens/recetario.js') },
+  leer: { tab: 'practicar', load: () => import('./screens/leer.js') },
+  lunfardo: { tab: 'practicar', load: () => import('./screens/lunfardo.js') },
+  podcast: { tab: 'practicar', load: () => import('./screens/podcast.js') },
+  canciones: { tab: 'practicar', load: () => import('./screens/canciones.js') },
+  ipa: { tab: 'ipa', load: () => import('./screens/ipa.js') },
+  libros: { tab: 'practicar', load: () => import('./screens/libros.js') },
+  recetas: { tab: 'practicar', load: () => import('./screens/recetario.js') },
   repaso: { tab: 'repaso', load: () => import('./screens/repaso.js') },
   sesion: { tab: 'repaso', load: () => import('./screens/sesion.js') },
   tarjeta: { tab: 'repaso', load: () => import('./screens/tarjeta.js') },
   boveda: { tab: 'repaso', load: () => import('./screens/boveda.js') },
   vista: { tab: 'repaso', load: () => import('./screens/vista.js') },
-  crucigrama: { tab: 'repaso', load: () => import('./screens/crucigrama.js') },
+  crucigrama: { tab: 'crucigrama', load: () => import('./screens/crucigrama.js') },
   estadisticas: { tab: 'repaso', load: () => import('./screens/estadisticas.js') },
   mazo: { tab: 'repaso', load: () => import('./screens/mazo.js') },
   perfil: { tab: 'perfil', load: () => import('./screens/perfil.js') },
 };
+// Screens whose arrangement changes between the phone column and the wide PC layout.
+const RESPONSIVE = new Set(['hoy', 'repaso', 'crucigrama', 'ipa']);
 
 const main = document.getElementById('screen');
+shell.init({ version: APP_VERSION, onWideChange: () => { if (RESPONSIVE.has(currentName())) route(); } });
+const currentName = () => (location.hash.replace(/^#\/?/, '') || 'hoy').split('?')[0];
 let cleanup = null;
 let renderId = 0;
 
 async function route() {
-  const name = (location.hash.replace(/^#\/?/, '') || 'hoy').split('?')[0];
+  const name = currentName();
   const r = routes[name] || routes.hoy;
   const id = ++renderId;
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
-  document.querySelectorAll('.tabbar a').forEach((a) => {
-    if (a.dataset.tab === r.tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-  });
+  shell.update(r.tab);
+  main.dataset.screen = routes[name] ? name : 'hoy';
   main.replaceChildren();
   try {
     const mod = await r.load();

@@ -27,7 +27,7 @@ On Windows:
 ## Layout
 
 - `index.html`, `css/app.css`: shell and theme (light/dark)
-- `js/app.js`: router; `js/screens/*`: one file per screen
+- `js/app.js`: router; `js/shell.js`: top bar and side menu (a drawer on phones); `js/screens/*`: one file per screen
 - `js/ipa.js`: Rioplatense IPA transcriber (yeísmo [ʃ], s-aspiration, b/d/g lenition, resyllabification)
 - `js/audio.js`, `js/waveform.js`: recording, playback, waveforms
 - `js/db.js`: on-phone storage (IndexedDB)

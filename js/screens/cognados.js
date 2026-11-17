@@ -1,5 +1,4 @@
-import { h, toast, shuffle } from '../ui.js';
-import { practiceTabs } from './sombra.js';
+import { h, toast, shuffle, pageHead, wide } from '../ui.js';
 import { RULES, toSpanish, FALSE_FRIENDS } from '../cognates.js';
 import { analyzeWord, transcribe } from '../ipa.js';
 import { db } from '../db.js';
@@ -49,6 +48,8 @@ function converter(root) {
 
 function rules(root) {
   root.append(h('p', { class: 'muted small' }, `${RULES.length} reglas de inglés a español. La sílaba subrayada lleva la fuerza.`));
+  const page = root;
+  if (wide()) { root = h('div', { class: 'grid-wide-3' }); page.append(root); }
   for (const r of RULES) {
     root.append(h('div', { class: 'card', style: 'gap:6px;padding:12px 16px' },
       h('div', { class: 'row', style: 'gap:10px' }, h('b', { style: 'font-size:18px' }, `-${r.en}`), h('span', { class: 'muted' }, '→'), h('b', { style: 'font-size:18px;color:var(--accent)' }, `-${r.es}`)),
@@ -103,11 +104,12 @@ function speedRound(root) {
 
 function falseFriends(root) {
   root.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Se parecen al inglés pero significan otra cosa. Las clásicas que hacen pasar vergüenza.'));
-  FALSE_FRIENDS.forEach((f) => root.append(ffCard(f)));
+  const list = wide() ? h('div', { class: 'grid-wide-3' }) : root;
+  if (list !== root) root.append(list);
+  FALSE_FRIENDS.forEach((f) => list.append(ffCard(f)));
 }
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, practiceTabs('cognados')));
   const tabs = MODES.map(([k, label]) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(k === mode), style: 'min-height:40px;font-size:12px' }, label));
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   let cleanup = null;
@@ -115,13 +117,15 @@ export async function render(main) {
     if (cleanup) cleanup();
     cleanup = null;
     body.replaceChildren();
+    body.style.maxWidth = wide() && (mode === 'convertir' || mode === 'ronda') ? '760px' : '';
     if (mode === 'convertir') converter(body);
     else if (mode === 'reglas') rules(body);
     else if (mode === 'ronda') cleanup = speedRound(body);
     else falseFriends(body);
   };
   tabs.forEach((b, i) => { b.onclick = () => { mode = MODES[i][0]; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); draw(); }; });
-  main.append(h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs), body);
+  main.append(pageHead(`REGLAS DE SUFIJOS Y FALSOS AMIGOS · ${RULES.length} REGLAS · ${FALSE_FRIENDS.length} FALSOS AMIGOS`, 'Cognados',
+    h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs)), body);
   draw();
   return () => { if (cleanup) cleanup(); };
 }

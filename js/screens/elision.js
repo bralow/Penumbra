@@ -15,8 +15,8 @@ export async function render(main) {
   const clips = await db.all('clips');
   if (!clips.length) {
     main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Faltan los clips'),
-      h('p', { class: 'muted small' }, 'Elisión usa las frases de OpenSLR. Importá el paquete en Perfil.'),
-      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Perfil')));
+      h('p', { class: 'muted small' }, 'Elisión usa las frases de OpenSLR. Importá el paquete en Ajustes.'),
+      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Ajustes')));
     return () => {};
   }
   // Sentences with at least two aspiration spots, most first.

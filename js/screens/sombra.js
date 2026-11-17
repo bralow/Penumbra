@@ -33,8 +33,8 @@ export async function render(main) {
     prevBtn.disabled = nextBtn.disabled = true;
     main.append(h('section', { class: 'card empty' },
       h('h2', {}, 'Todavía no hay clips'),
-      h('p', { class: 'muted small' }, 'Prepará el paquete de audios de OpenSLR en tu compu y después importalo desde Perfil.'),
-      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Perfil')));
+      h('p', { class: 'muted small' }, 'Prepará el paquete de audios de OpenSLR en tu compu y después importalo desde Ajustes.'),
+      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Ajustes')));
     return () => {};
   }
 

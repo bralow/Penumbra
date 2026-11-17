@@ -12,7 +12,7 @@ export async function render(main) {
   main.append(h('div', { class: 'between' }, h('a', { href: '#/hoy', class: 'pill', style: 'display:flex;align-items:center;text-decoration:none' }, '← Hoy'), h('h1', { style: 'font-size:24px' }, 'Calentamiento')));
   const clips = await db.all('clips');
   if (!clips.length) {
-    main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Faltan los clips'), h('p', { class: 'muted small' }, 'Importá el paquete de OpenSLR en Perfil.')));
+    main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Faltan los clips'), h('p', { class: 'muted small' }, 'Importá el paquete de OpenSLR en Ajustes.')));
     return () => {};
   }
   const li = LEVELS.indexOf(getSettings().level);
