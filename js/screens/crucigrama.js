@@ -1,5 +1,5 @@
 // Crucigrama (FE-17): built from a deck's words. Doesn't change any due dates.
-import { h, toast } from '../ui.js';
+import { h, toast, pageHead, wide } from '../ui.js';
 import { db } from '../db.js';
 import { decks } from '../penumbra.js';
 import { build, letters } from '../crossword.js';
@@ -31,11 +31,10 @@ export async function render(main) {
   const sel = h('select', { 'aria-label': 'Mazo', style: 'min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;flex:1' },
     h('option', { value: '' }, 'Todos los mazos'), ...ds.map((d) => h('option', { value: d.id }, d.name)));
   sel.value = deckId;
-  const again = h('button', { type: 'button', class: 'pill' }, 'Otro');
-  const back = h('a', { href: '#/repaso', class: 'pill', style: 'min-height:40px;display:inline-flex;align-items:center;text-decoration:none' }, '← Repaso');
+  const again = h('button', { type: 'button', class: 'btn' }, '↻ Otro crucigrama');
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
-  main.append(h('div', { class: 'between' }, back, h('span', { class: 'chip' }, 'no cambia fechas')), h('h1', {}, 'Crucigrama'),
-    h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap' }, sel, again), body);
+  main.append(pageHead('PASATIEMPOS Y VOCABULARIO · NO CAMBIA FECHAS', 'Crucigrama rioplatense', again),
+    h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap;max-width:520px' }, h('label', { class: 'muted small', style: 'white-space:nowrap' }, 'Palabras de:'), sel), body);
   sel.onchange = () => { deckId = sel.value; make(); };
   // Ready-made decks: Historia and Lugares (from the culture cards).
   const have = new Set(ds.map((d) => d.name));
@@ -73,7 +72,8 @@ export async function render(main) {
       body.replaceChildren(h('section', { class: 'card' }, h('p', { class: 'muted' }, 'Hacen falta al menos 3 palabras sueltas con significado en este mazo. Probá con otro mazo o con «Todos los mazos».')));
       return;
     }
-    const avail = Math.min(window.innerWidth, 480) - 40;
+    const isWide = wide();
+    const avail = isWide ? Math.min(640, Math.floor(body.clientWidth * 7 / 12) - 60) : Math.min(window.innerWidth, 480) - 40;
     const size = Math.max(17, Math.min(36, Math.floor((avail - 2 * (cw.w - 1)) / cw.w)));
     const fill = cw.cells.map((row) => row.map(() => ''));
     const els = cw.cells.map((row) => row.map(() => null));
@@ -91,7 +91,7 @@ export async function render(main) {
     }));
     const keyIn = h('input', { type: 'text', 'aria-label': 'Escribí la letra', autocomplete: 'off', autocapitalize: 'characters', spellcheck: 'false', style: 'position:absolute;opacity:0;width:1px;height:1px;left:-10px' });
     const clueBar = h('div', { 'aria-live': 'polite', style: 'background:var(--hero);color:var(--hero-ink);border-radius:14px;padding:10px 14px;min-height:46px;font-weight:600;position:sticky;top:8px;z-index:3' }, 'Tocá una casilla para empezar');
-    const lists = h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px' });
+    const lists = h('div', { style: `display:grid;grid-template-columns:${isWide ? '1fr' : '1fr 1fr'};gap:${isWide ? 16 : 10}px` });
     const clueEls = new Map();
     const col = (dir, title) => h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('span', { class: 'kicker' }, title),
       ...cw.words.filter((w) => w.dir === dir).map((w) => { const e = h('button', { type: 'button', style: 'text-align:left;background:none;border:none;color:var(--ink);font:inherit;font-size:14px;padding:4px 2px;cursor:pointer;line-height:1.35' }, h('b', {}, `${w.num}. `), w.clue); e.onclick = () => { cur = w; pos = 0; paint(); keyIn.focus(); }; clueEls.set(w, e); return e; }));
@@ -163,7 +163,11 @@ export async function render(main) {
     };
     const reveal = h('button', { type: 'button', class: 'pill' }, 'Revelar palabra');
     reveal.onclick = () => { if (!cur) return toast('Elegí una palabra primero'); cellsOf(cur).forEach(([x, y], i) => { fill[y][x] = cur.answer[i]; }); paint(); checkDone(); };
-    body.replaceChildren(clueBar, h('div', { style: 'overflow-x:auto;padding:4px 0' }, board), keyIn, h('div', { class: 'row wrap', style: 'gap:8px;justify-content:center' }, check, reveal), lists);
+    const tools = h('div', { class: 'row wrap', style: 'gap:8px;justify-content:center' }, check, reveal);
+    if (isWide) body.replaceChildren(h('div', { class: 'cols board-side' },
+      h('section', { class: 'card', style: 'gap:14px;padding:20px' }, clueBar, h('div', { style: 'overflow-x:auto;padding:4px 0' }, board), keyIn, tools),
+      h('section', { class: 'card', style: 'gap:12px;padding:20px' }, h('h2', {}, 'Pistas'), lists)));
+    else body.replaceChildren(clueBar, h('div', { style: 'overflow-x:auto;padding:4px 0' }, board), keyIn, tools, lists);
     paint();
     cleanup = () => {};
   }

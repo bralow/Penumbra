@@ -20,7 +20,7 @@ export async function render(main) {
   if (!songs.length) {
     main.append(h('section', { class: 'card empty' },
       h('h2', {}, 'Todavía no hay canciones'),
-      h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Prepará las canciones en la computadora con prepare_songs.py y después importá cada canciones-1.zip, canciones-2.zip… acá o en Perfil.')),
+      h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Prepará las canciones en la computadora con prepare_songs.py y después importá cada canciones-1.zip, canciones-2.zip… acá o en Ajustes.')),
     importCard());
     return () => {};
   }

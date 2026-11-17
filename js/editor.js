@@ -153,7 +153,7 @@ export async function buildEditor(el, { note, deckId, onDone }) {
   const proofBtn = h('button', { type: 'button', class: 'pill', style: 'min-height:42px' }, '✨ Revisar con IA');
   const NAMES = { front: 'Frente', meaning: 'Significado', context: 'Frase de ejemplo', hint: 'Nota' };
   async function runProof() {
-    if (!geminiReady()) { toast('Falta la clave de Gemini (Perfil → Gemini)'); return; }
+    if (!geminiReady()) { toast('Falta la clave de Gemini (Ajustes → Gemini)'); return; }
     if (!front.value.trim()) { toast('Escribí el frente primero'); return; }
     proofBtn.disabled = true; proofBtn.textContent = 'Revisando…';
     try {

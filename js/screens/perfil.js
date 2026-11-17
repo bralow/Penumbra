@@ -1,4 +1,4 @@
-import { h, toast, LEVELS } from '../ui.js';
+import { h, toast, LEVELS, pageHead } from '../ui.js';
 import { getVoz, setVoz, listVoices, spanish, pickVoice, phoneSay } from '../voz.js';
 import { getSettings, setSetting } from '../settings.js';
 import { db, persist } from '../db.js';
@@ -19,20 +19,22 @@ function pillGroup(label, options, value, onPick, { cls = 'grid6', goal = false,
 
 export async function render(main) {
   const s = getSettings();
-  main.append(h('h1', {}, 'Perfil'));
+  main.append(pageHead('AJUSTES Y DATOS LOCALES', 'Perfil y configuración', h('span', { class: 'tag' }, `Versión ${APP_VERSION.split(' ')[0]}`)));
+  const grid = h('div', { class: 'masonry' });
+  main.append(grid);
 
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     pillGroup('Nivel actual', LEVELS, s.level, (v) => setSetting('level', v)),
     pillGroup('Meta', LEVELS, s.goal, (v) => setSetting('goal', v), { goal: true }),
     h('p', { class: 'muted small', style: 'line-height:1.4' }, 'Tu nivel elige qué frases te tocan en Sombra: las de tu nivel y las de un nivel arriba o abajo.')));
 
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     pillGroup('Velocidad inicial', ['0.5', '0.75', '1'], s.speed, (v) => setSetting('speed', v), { cls: 'grid3', fmt: (x) => (x === '1' ? '1.0x' : x + 'x') })));
 
   // Appearance: theme, accent, density, your name, which blocks Hoy shows.
-  const ACCENTS = [['azul', 'Azul', '#8FA8FF'], ['menta', 'Menta', '#5EEAD4'], ['ambar', 'Ámbar', '#FFB86B'], ['lila', 'Lila', '#E9A8FF']];
+  const ACCENTS = [['cian', 'Cian', '#2AB4D6'], ['azul', 'Azul', '#8FA8FF'], ['menta', 'Menta', '#5EEAD4'], ['ambar', 'Ámbar', '#FFB86B'], ['lila', 'Lila', '#E9A8FF']];
   const swatches = ACCENTS.map(([k, l, c]) => {
-    const b = h('button', { type: 'button', class: 'pill', 'aria-pressed': String((s.accent || 'azul') === k), style: 'display:flex;align-items:center;gap:6px;justify-content:center;min-width:0;border-radius:12px' },
+    const b = h('button', { type: 'button', class: 'pill', 'aria-pressed': String((s.accent || 'cian') === k), style: 'display:flex;align-items:center;gap:6px;justify-content:center;min-width:0;border-radius:12px' },
       h('span', { style: `width:14px;height:14px;border-radius:50%;background:${c};flex:none` }), l);
     b.onclick = () => { setSetting('accent', k); swatches.forEach((x, i) => x.setAttribute('aria-pressed', String(ACCENTS[i][0] === k))); };
     return b;
@@ -46,10 +48,10 @@ export async function render(main) {
     cb.onchange = () => { if (cb.checked) hiddenSet.delete(k); else hiddenSet.add(k); setSetting('hoyHidden', [...hiddenSet]); };
     return h('label', { style: 'display:flex;gap:10px;align-items:center;min-height:36px;cursor:pointer' }, cb, l);
   });
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     h('span', { class: 'kicker' }, 'APARIENCIA'),
     pillGroup('Tema', ['dark', 'light', 'system'], s.theme, (v) => setSetting('theme', v), { cls: 'grid3', fmt: (x) => ({ system: 'Del teléfono', light: 'Claro', dark: 'Oscuro' })[x] }),
-    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Color de acento'), h('div', { style: 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px' }, swatches),
+    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Color de acento'), h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px' }, swatches),
     pillGroup('Densidad', ['comoda', 'compacta'], s.density || 'comoda', (v) => setSetting('density', v), { cls: 'grid3', fmt: (x) => ({ comoda: 'Cómoda', compacta: 'Compacta' })[x] }),
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Tu nombre'), name,
     h('details', {}, h('summary', { style: 'font-weight:700;cursor:pointer;font-size:15px' }, 'Qué muestra Hoy'), h('div', { style: 'display:flex;flex-direction:column;margin-top:6px' }, blockBoxes))));
@@ -58,7 +60,7 @@ export async function render(main) {
   const g = { reviews: 30, streak: 30, ...(s.goals || {}) };
   const pen = penSettings();
   const setGoal = (k, v) => { g[k] = v; setSetting('goals', { ...g }); };
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     h('span', { class: 'kicker' }, 'METAS'),
     pillGroup('Repasos por día', ['10', '20', '30', '50', '100'], String(g.reviews), (v) => setGoal('reviews', Number(v)), { cls: 'grid6' }),
     pillGroup('Tarjetas nuevas por día', ['5', '10', '15', '20', '30'], String(pen.newPerDay), (v) => savePen({ newPerDay: Number(v) }), { cls: 'grid6' }),
@@ -90,7 +92,7 @@ export async function render(main) {
     }
   };
   const SHOW_VOICE = false; // Azure voice setup is parked until the user wants it
-  if (SHOW_VOICE) main.append(h('section', { class: 'card' },
+  if (SHOW_VOICE) grid.append(h('section', { class: 'card' },
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Voz argentina'),
     h('p', { class: 'muted small', style: 'line-height:1.4' }, 'Para que Escuchar hable con acento argentino. Usa Azure (gratis hasta 500.000 caracteres por mes). Sin clave, usa la voz del teléfono.'),
     keyField, regionField, voicePills, testBtn, ttsStatus));
@@ -117,7 +119,7 @@ export async function render(main) {
   vAll.onclick = () => { showAll = !showAll; vAll.textContent = showAll ? 'Solo voces en español' : 'Ver todas las voces'; fillVoices(); };
   vTry.onclick = () => { phoneSay('¡Hola, che! ¿Cómo andás? Yo te voy a leer en voz alta.'); };
   srcBtns.forEach((b, i) => { b.onclick = () => { setVoz({ source: i ? 'gemini' : 'phone' }); srcBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); }; });
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Voz para leer en voz alta'),
     h('p', { class: 'muted small', style: 'line-height:1.4' }, 'La voz del teléfono es gratis, instantánea y funciona sin internet. Se usa en Escuchar, Trabalenguas, la tarjeta del día, Escribir, Diario y las respuestas escritas de Flor. La charla en vivo siempre usa la voz de Gemini.'),
     h('div', { class: 'seg', role: 'group', 'aria-label': 'Voz para leer' }, srcBtns),
@@ -143,7 +145,7 @@ export async function render(main) {
     } catch (err) { gStatus.textContent = 'No funcionó: ' + (err.message || err); }
   };
   gRemove.onclick = () => { setGemini({ key: '', model: '' }); gKey.value = ''; gStatus.textContent = 'Clave quitada del teléfono.'; gRemove.hidden = true; };
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Gemini (funciones con IA)'),
     h('p', { class: 'muted small', style: 'line-height:1.4' }, 'Pegá tu clave de Google AI Studio. Queda guardada solo en este teléfono y se envía únicamente a Google. En el plan gratis, Google puede usar lo que escribas para mejorar sus productos: no compartas datos privados.'),
     h('label', { for: 'gkey', class: 'small', style: 'font-weight:600' }, 'Clave de Gemini'), gKey,
@@ -164,8 +166,8 @@ export async function render(main) {
     try {
       await persist();
       const r = await importPack(file, (d, t) => { status.textContent = `Importando… ${d} de ${t}`; });
-      if (r.kind === 'podcast') { status.textContent = `Listo: ${r.n} episodios de ${r.show}${r.packs > 1 ? ` (paquete ${r.pack} de ${r.packs})` : ''}. Están en Leer → Podcast.`; toast('Episodios importados'); }
-      else if (r.kind === 'songs') { status.textContent = `Listo: ${r.n} canciones de ${r.show}. Están en Leer → Canciones.`; toast('Canciones importadas'); }
+      if (r.kind === 'podcast') { status.textContent = `Listo: ${r.n} episodios de ${r.show}${r.packs > 1 ? ` (paquete ${r.pack} de ${r.packs})` : ''}. Están en Practicar → Podcast.`; toast('Episodios importados'); }
+      else if (r.kind === 'songs') { status.textContent = `Listo: ${r.n} canciones de ${r.show}. Están en Practicar → Canciones.`; toast('Canciones importadas'); }
       else { status.textContent = `Listo: ${r.n} clips importados.`; toast('Clips importados'); }
     } catch (err) {
       status.textContent = 'No se pudo importar: ' + (err.message || err);
@@ -180,14 +182,16 @@ export async function render(main) {
     if (!window.confirm('¿Borrar todos los clips del teléfono? Tu Mazo no se toca.')) return;
     await db.clear('clips'); await db.clear('audio'); refresh(); toast('Clips borrados');
   };
-  main.append(h('section', { class: 'card' },
+  grid.append(h('section', { class: 'card' },
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Clips de audio'), count,
     h('div', { class: 'row wrap' }, importBtn, input, clearBtn), status));
   refresh();
 
-  main.append(syncSection());
+  const sync = syncSection();
+  grid.append(sync);
+  if (/[?&]sync/.test(location.hash)) requestAnimationFrame(() => sync.scrollIntoView({ block: 'start' }));
 
-  main.append(h('section', { style: 'padding:4px 4px 0;display:flex;flex-direction:column;gap:6px' },
+  grid.append(h('section', { style: 'padding:4px 4px 0;display:flex;flex-direction:column;gap:6px' },
     h('h3', { class: 'muted', style: 'font-size:13px;font-weight:700;letter-spacing:.08em' }, 'CRÉDITOS'),
     h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Audio: corpus de español argentino de OpenSLR (Google), con licencia ',
       h('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), '.'),
@@ -198,7 +202,7 @@ export async function render(main) {
 // Sync and backup (FE-01): Google Drive keeps devices identical; the backup file works anywhere, offline.
 function syncSection() {
   const ago = (t) => { if (!t) return 'nunca'; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
-  const box = h('section', { class: 'card' });
+  const box = h('section', { class: 'card', id: 'sync', style: 'scroll-margin-top:72px' });
   const status = h('p', { class: 'small', role: 'status', style: 'line-height:1.45' });
   const fieldStyle = 'min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;width:100%';
 

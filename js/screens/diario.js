@@ -42,7 +42,7 @@ export async function render(main) {
     h('span', { class: 'kicker' }, `DIARIO · ${fmtDate(Date.now()).toUpperCase()}`), promptEl,
     h('div', { class: 'row' }, another),
     h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:6px' }, recBtn, timeEl, hint)));
-  if (!geminiReady()) main.append(h('p', { class: 'muted small', style: 'text-align:center' }, 'Tus grabaciones se guardan igual. Para que la profe las escuche y corrija hace falta la clave de Gemini. ', h('a', { href: '#/perfil' }, 'Ir a Perfil')));
+  if (!geminiReady()) main.append(h('p', { class: 'muted small', style: 'text-align:center' }, 'Tus grabaciones se guardan igual. Para que la profe las escuche y corrija hace falta la clave de Gemini. ', h('a', { href: '#/perfil' }, 'Ir a Ajustes')));
 
   const result = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   const progressBox = h('div');

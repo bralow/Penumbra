@@ -39,8 +39,8 @@ export async function render(main) {
 
   if (!clips.length) {
     main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Faltan los clips'),
-      h('p', { class: 'muted small' }, 'Oído usa las frases de OpenSLR. Importá el paquete en Perfil.'),
-      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Perfil')));
+      h('p', { class: 'muted small' }, 'Oído usa las frases de OpenSLR. Importá el paquete en Ajustes.'),
+      h('a', { class: 'btn', href: '#/perfil', style: 'align-self:center' }, 'Ir a Ajustes')));
     return () => {};
   }
 

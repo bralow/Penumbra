@@ -43,7 +43,7 @@ async function fetchAzure(text, s) {
 // Returns an audio Blob in the Argentine voice (cached), or throws.
 export async function argentineAudio(text, { force = false } = {}) {
   const s = getTts();
-  if (!s.key || !s.region) throw new Error('Falta configurar la voz argentina en Perfil');
+  if (!s.key || !s.region) throw new Error('Falta configurar la voz argentina en Ajustes');
   const id = `${s.voice}|${text.toLowerCase().trim()}`;
   if (!force) {
     const hit = await db.get('tts', id);

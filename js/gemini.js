@@ -87,7 +87,7 @@ export async function testKey(key) {
 // fast: ask the model to skip most of its "thinking", which is what makes chat replies slow.
 export async function ask({ system, turns, json = false, temperature = 0.7, fast = false }) {
   const s = getGemini();
-  if (!s.key || !s.model) throw new Error('Falta la clave de Gemini (Perfil → Gemini).');
+  if (!s.key || !s.model) throw new Error('Falta la clave de Gemini (Ajustes → Gemini).');
   const payload = {
     contents: turns.map((t) => ({ role: t.role, parts: t.parts || [{ text: t.text }] })), // parts: text plus audio, etc.
     generationConfig: { temperature, ...(json ? { responseMimeType: 'application/json' } : {}) },
