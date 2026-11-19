@@ -1,5 +1,6 @@
 // Deck preview (FE-02): browse a deck as flip cards or a gallery. Nothing counts as a review.
-import { h } from '../ui.js';
+import { h, wide } from '../ui.js';
+import { cardShell, backContent, listenButton } from '../cardface.js';
 import { db } from '../db.js';
 import { phoneSay, stopPhone } from '../voz.js';
 
@@ -30,32 +31,42 @@ export async function render(main) {
   if (!notes.length) { body.append(h('p', { class: 'muted' }, 'Este mazo está vacío.')); return () => {}; }
 
   let i = 0, flipped = false, onKey = null;
-  const backSide = (c) => [
-    c.image instanceof Blob ? h('img', { src: URL.createObjectURL(c.image), alt: '', style: 'max-width:100%;max-height:26vh;border-radius:12px;object-fit:contain' }) : '',
-    h('span', { style: 'font-family:var(--display);font-size:26px;font-weight:700' }, c.front),
-    c.ipa ? h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, c.ipa) : '',
-    c.meaning ? h('span', { style: 'font-size:19px;font-weight:600' }, c.meaning) : '',
-    c.hint ? h('span', { class: 'muted small' }, c.hint) : '',
-    c.context ? h('p', { style: 'font-size:15px;line-height:1.5;background:var(--chip);border-radius:12px;padding:10px 12px;text-align:left' }, c.context) : '',
-  ];
+  // The same card design as in the review: front and back. On the PC both faces sit side by side.
+  const frontFace = (c) => {
+    const f = cardShell('front', 'Frente', deck ? deck.name : '');
+    f.append(h('div', { class: 'fc-mid' },
+      c.image instanceof Blob ? h('img', { class: 'fc-img', src: URL.createObjectURL(c.image), alt: '' }) : '',
+      h('span', { class: 'fc-word', style: `font-size:${c.front.length > 40 ? 24 : c.front.length > 18 ? 32 : 42}px` }, c.front),
+      listenButton(() => play(c))));
+    return f;
+  };
+  const backFace = (c) => { const f = cardShell('back', 'Respuesta', deck ? deck.name : ''); f.append(...backContent(c, { onListen: () => play(c) })); return f; };
   function drawFlip() {
     const c = notes[i];
-    const face = h('button', { type: 'button', 'aria-label': flipped ? 'Ver el frente' : 'Dar vuelta', class: 'card', style: 'min-height:48vh;align-items:center;justify-content:center;text-align:center;gap:12px;cursor:pointer;font:inherit;color:inherit;padding:22px' },
-      ...(flipped ? backSide(c) : [
-        c.image instanceof Blob ? h('img', { src: URL.createObjectURL(c.image), alt: '', style: 'max-width:100%;max-height:26vh;border-radius:12px;object-fit:contain' }) : '',
-        h('span', { style: `font-family:var(--display);font-size:${c.front.length > 30 ? 24 : 38}px;font-weight:700;line-height:1.25` }, c.front),
-        h('span', { class: 'muted small' }, 'tocá para dar vuelta')]));
-    face.onclick = () => { flipped = !flipped; drawFlip(); };
-    let x0 = null;
-    face.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
-    face.addEventListener('touchend', (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 60) { e.preventDefault(); go(dx < 0 ? 1 : -1); } });
+    const both = wide();
+    const face = both ? null : (flipped ? backFace(c) : frontFace(c));
+    const stageEl = both
+      ? h('div', { class: 'fc-faces two' },
+        h('div', { style: 'display:flex;flex-direction:column;gap:10px' }, h('span', { class: 'fc-label' }, 'FRENTE'), frontFace(c)),
+        h('div', { style: 'display:flex;flex-direction:column;gap:10px' }, h('span', { class: 'fc-label back' }, 'REVERSO'), backFace(c)))
+      : h('div', { class: 'fc-faces' }, face);
+    if (face) {
+      face.setAttribute('role', 'button'); face.setAttribute('tabindex', '0');
+      face.setAttribute('aria-label', flipped ? 'Ver el frente' : 'Dar vuelta');
+      face.style.cursor = 'pointer';
+      face.onclick = (e) => { if (e.target.closest('button, a')) return; flipped = !flipped; drawFlip(); };
+      let x0 = null;
+      face.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+      face.addEventListener('touchend', (e) => { if (x0 === null) return; const dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 60) { e.preventDefault(); go(dx < 0 ? 1 : -1); } });
+    }
     const prev = h('button', { type: 'button', class: 'pill', 'aria-label': 'Anterior' }, '←');
     const next = h('button', { type: 'button', class: 'pill', 'aria-label': 'Siguiente' }, '→');
-    const listen = h('button', { type: 'button', class: 'pill' }, '▶ Escuchar');
+    const flip = h('button', { type: 'button', class: 'pill', hidden: both }, '↻ Dar vuelta');
+    flip.onclick = () => { flipped = !flipped; drawFlip(); };
     const edit = h('a', { href: `#/tarjeta?note=${encodeURIComponent(c.note)}`, class: 'pill', style: 'display:inline-flex;align-items:center;text-decoration:none' }, '✎ Editar');
-    prev.onclick = () => go(-1); next.onclick = () => go(1); listen.onclick = () => play(c);
-    body.replaceChildren(face, h('div', { class: 'between', style: 'flex-wrap:nowrap' }, prev, h('span', { class: 'small', style: 'font-variant-numeric:tabular-nums' }, `${i + 1} / ${notes.length}`), next),
-      h('div', { class: 'row', style: 'gap:8px;justify-content:center' }, listen, edit));
+    prev.onclick = () => go(-1); next.onclick = () => go(1);
+    body.replaceChildren(stageEl, h('div', { class: 'between', style: 'flex-wrap:nowrap;max-width:900px;width:100%;margin:0 auto' }, prev, h('span', { class: 'small', style: 'font-variant-numeric:tabular-nums' }, `${i + 1} / ${notes.length}`), next),
+      h('div', { class: 'row', style: 'gap:8px;justify-content:center' }, flip, edit));
   }
   function go(d) { i = (i + d + notes.length) % notes.length; flipped = false; drawFlip(); }
   function drawGrid() {

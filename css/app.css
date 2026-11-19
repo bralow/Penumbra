@@ -37,6 +37,7 @@
 :root[data-theme="dark"][data-accent="lila"] { --accent: #E9A8FF; }
 /* Colours mixed from the accent, so every accent gets matching tints. */
 :root {
+  --accent-raw: #2AB4D6; --accent-raw-ink: #07070A; --magenta: #EC4899;
   --accent-ring: color-mix(in srgb, var(--accent) 30%, var(--surface));
   --hero: color-mix(in srgb, var(--accent) 10%, var(--surface));
   --hero-line: color-mix(in srgb, var(--accent) 35%, var(--surface));
@@ -313,3 +314,59 @@ button.cal-day:focus-visible { outline: 2px solid var(--ink); outline-offset: 2p
 button.cal-day.today { outline: 2px solid var(--ink); outline-offset: 1px; }
 .cal-n { position: absolute; top: 3px; right: 5px; font-size: 9px; font-weight: 700; opacity: .85; }
 @media (min-width: 1024px) { .cal { max-width: 560px; } }
+
+/* ===== Flashcards (review session and deck preview): night photos, neon rims, glass boxes =====
+   A card always looks the same in light and dark mode: it sets its own dark colours. */
+.fc { --ink: #F8FAFC; --muted: #CBD5E1; --muted2: #CBD5E1; --line: rgba(255, 255, 255, .18); --chip: rgba(255, 255, 255, .1); --soft: rgba(255, 255, 255, .08);
+  --bg: rgba(8, 12, 24, .62); --surface: rgba(12, 16, 30, .7); --sel: #F8FAFC; --sel-ink: #070911; --ipa: #FDF2F8; --gold-text: #F9A8D4; --gold: #F472B6; --native: #E4E4E7; --user: #FF9E5E; --hero: rgba(9, 13, 26, .7); --hero-ink: #F8FAFC;
+  --accent: var(--accent-raw); --accent-ink: var(--accent-raw-ink); --rim: var(--accent-raw);
+  color-scheme: dark; color: var(--ink); position: relative; isolation: isolate; overflow: hidden; width: 100%; max-width: 520px; margin: 0 auto;
+  min-height: min(68vh, 660px); border-radius: 16px; padding: 22px 20px 18px; display: flex; flex-direction: column; align-items: stretch; gap: 14px;
+  background: #090d1a; border: 1.5px solid color-mix(in srgb, var(--rim) 75%, transparent);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--rim) 35%, transparent), inset 0 0 28px color-mix(in srgb, var(--rim) 18%, transparent), 0 24px 50px rgba(0, 0, 0, .45); }
+.fc::before { content: ""; position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: center; }
+.fc-front::before { background-image: linear-gradient(180deg, rgba(10, 16, 34, .35) 0%, rgba(12, 18, 36, .5) 55%, rgba(8, 11, 22, .8) 100%), var(--fc-front-img, linear-gradient(160deg, #0b1630, #1a0f2e 60%, #090d1a)); filter: saturate(1.1); }
+.fc-back { --rim: var(--magenta); }
+.fc-back::before { background-image: linear-gradient(180deg, rgba(8, 11, 22, .86) 0%, rgba(12, 15, 28, .8) 50%, rgba(14, 17, 32, .7) 100%), var(--fc-back-img, linear-gradient(200deg, #2a0f24, #0b1630 70%)); background-position: bottom center; }
+.fc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 22px; }
+.fc-badge { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; background: rgba(9, 13, 26, .75); border: 1px solid color-mix(in srgb, var(--rim) 45%, transparent); color: var(--rim); }
+.fc-deck { font-size: 11px; font-weight: 600; color: var(--muted); background: rgba(9, 13, 26, .6); padding: 3px 8px; border-radius: 999px; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; }
+.fc-word { font-family: var(--display); font-weight: 700; line-height: 1.2; text-shadow: 0 2px 12px rgba(0, 0, 0, .75); }
+.fc .ipa { color: var(--gold-text); text-shadow: 0 2px 8px rgba(0, 0, 0, .7); }
+.fc-listen { align-self: center; display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 28px; border-radius: 14px; cursor: pointer; font: inherit; font-size: 19px; font-weight: 600; color: #fff;
+  background: linear-gradient(180deg, rgba(22, 27, 46, .92), rgba(11, 14, 26, .96)) padding-box, linear-gradient(135deg, var(--accent-raw) 0%, #60A5FA 45%, var(--magenta) 100%) border-box; border: 2px solid transparent;
+  box-shadow: 0 -4px 18px color-mix(in srgb, var(--accent-raw) 45%, transparent), 0 4px 18px rgba(236, 72, 153, .45), inset 0 1px 1px rgba(255, 255, 255, .25); transition: transform .15s, box-shadow .2s; }
+.fc-listen:hover { transform: translateY(-1px) scale(1.02); }
+.fc-listen:active { transform: scale(.98); }
+.fc-listen.small { font-size: 15px; padding: 9px 18px; }
+.fc-listen.playing { animation: neon 1s infinite alternate; }
+@keyframes neon { to { box-shadow: 0 -8px 30px color-mix(in srgb, var(--accent-raw) 95%, transparent), 0 8px 30px rgba(236, 72, 153, .95); } }
+.fc-box { border-radius: 12px; padding: 14px 16px; text-align: center; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.fc-box-phrase { background: rgba(8, 22, 36, .78); border: 1.5px solid var(--accent-raw); box-shadow: 0 0 18px color-mix(in srgb, var(--accent-raw) 45%, transparent), inset 0 0 14px color-mix(in srgb, var(--accent-raw) 22%, transparent); }
+.fc-box-ipa { background: rgba(28, 10, 26, .78); border: 1.5px solid var(--magenta); box-shadow: 0 0 18px rgba(236, 72, 153, .45), inset 0 0 14px rgba(236, 72, 153, .22); padding: 12px 16px; }
+.fc-box-mean, .fc-box-ctx { background: rgba(15, 23, 42, .78); border: 1px solid rgba(148, 163, 184, .35); padding: 12px 16px; }
+.fc-phrase { font-weight: 600; line-height: 1.4; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, .65); }
+.fc-w { all: unset; cursor: pointer; border-radius: 4px; padding: 0 1px; }
+.fc-w:hover, .fc-w.on { background: color-mix(in srgb, var(--accent-raw) 30%, transparent); }
+.fc-w:focus-visible { outline: 2px solid var(--accent-raw); }
+.fc-ipa { font-family: 'JetBrains Mono', ui-monospace, var(--ipa-font), monospace; font-style: italic; font-size: 15px; color: #FDF2F8; }
+.fc-mean { font-size: 16px; color: #E2E8F0; font-weight: 500; }
+.fc-ctx { font-size: 15px; line-height: 1.5; color: #E2E8F0; text-align: left; }
+.fc-ctx b { color: var(--accent-raw); }
+.fc-hint { font-size: 13px; color: var(--gold-text); text-align: center; }
+.fc-src { font-size: 12px; color: var(--muted); text-align: center; }
+.fc-img { max-width: 100%; max-height: 26vh; border-radius: 12px; object-fit: contain; align-self: center; box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+.fc-feedback { text-align: center; font-weight: 700; }
+.fc-dictbar { margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .14); display: flex; flex-direction: column; gap: 8px; }
+.fc-dictword { font-size: 12px; color: var(--muted); text-align: center; }
+.fc-dictword b { color: #fff; }
+.fc-dictrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fc-dict { min-height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; font-size: 13px; color: #fff; background: rgba(9, 13, 26, .72); border: 1px solid rgba(255, 255, 255, .2); }
+.fc-dict:hover { border-color: var(--accent-raw); }
+.fc input, .fc textarea { background: rgba(8, 12, 24, .7) !important; color: #fff !important; border-color: rgba(255, 255, 255, .25) !important; }
+.fc .pill { background: rgba(9, 13, 26, .7); color: #fff; border-color: rgba(255, 255, 255, .2); }
+.fc-faces { display: grid; gap: 22px; }
+.fc-faces .fc-label { font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: .12em; text-align: center; color: var(--accent); }
+.fc-faces .fc-label.back { color: var(--magenta); }
+@media (min-width: 1024px) { .fc-faces.two { grid-template-columns: repeat(2, minmax(0, 440px)); justify-content: center; } }
