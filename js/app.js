@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.19-b (IPA: videos, diptongos e IPA detallada)';
+export const APP_VERSION = '2026.11.19-c (Diario: calendario; Practicar en dos columnas)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
@@ -59,17 +59,19 @@ let cleanup = null;
 let renderId = 0;
 // Where you were on each screen, so coming back to Practicar from one of its tools lands where you left it.
 const scrollMemo = new Map();
-let prevName = null;
+let prevName = null, prevHash = null;
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
 async function route() {
   const name = currentName();
   const r = routes[name] || routes.hoy;
   const id = ++renderId;
-  const from = prevName;
-  if (from) scrollMemo.set(from, window.scrollY);
-  prevName = name;
-  const restore = name === 'practicar' && from && from !== name && routes[from] && (routes[from].tab === 'practicar' || from === 'calentamiento' || from === 'cultura');
+  const from = prevName, fromHash = prevHash, hash = location.hash || '#/hoy';
+  if (fromHash) scrollMemo.set(fromHash, window.scrollY);
+  prevName = name; prevHash = hash;
+  // Back to Practicar from one of its tools, or back to the Diario calendar from an entry: land where you were.
+  const restore = (name === 'practicar' && from && from !== name && routes[from] && (routes[from].tab === 'practicar' || from === 'calentamiento' || from === 'cultura'))
+    || (hash === '#/diario' && /^#\/diario\?entrada=/.test(fromHash || ''));
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   shell.update(r.tab);
   main.dataset.screen = routes[name] ? name : 'hoy';
@@ -84,7 +86,7 @@ async function route() {
     console.error(err);
     main.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'Algo salió mal'), h('p', { class: 'muted small' }, String(err && err.message || err))));
   }
-  window.scrollTo(0, restore ? scrollMemo.get('practicar') || 0 : 0);
+  window.scrollTo(0, restore ? scrollMemo.get(hash) || 0 : 0);
 }
 
 window.addEventListener('hashchange', route);

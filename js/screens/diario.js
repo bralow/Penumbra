@@ -1,5 +1,5 @@
 // Diario de voz: record a short spoken entry, get it transcribed and corrected, track progress.
-import { h, iconEl, toast } from '../ui.js';
+import { h, iconEl, toast, openModal, closeBtn } from '../ui.js';
 import { practiceTabs } from './sombra.js';
 import { SPEAK_PROMPTS, promptOfDay, analyze } from '../diario.js';
 import { reviewView } from '../reviewview.js';
@@ -15,6 +15,11 @@ const MAX = 120; // seconds
 const fmtTime = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const fmtDate = (t) => new Date(t).toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' });
 const num = (x) => String(x).replace('.', ',');
+const fmtHour = (t) => new Date(t).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+const fmtLong = (t) => { const x = new Date(t).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return x.charAt(0).toUpperCase() + x.slice(1); };
+const dayKey = (t) => { const d = new Date(t); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; };
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+let calMonth = null; // { y, m } shown in the calendar; kept while you open an entry and come back
 
 // Small line chart of the last entries.
 function spark(values, color) {
@@ -29,8 +34,10 @@ function spark(values, color) {
 }
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, practiceTabs('diario')));
   const level = getSettings().level;
+  const entryId = new URLSearchParams(location.hash.split('?')[1] || '').get('entrada');
+  if (entryId) return entryPage(main, entryId, level);
+  main.append(h('div', { class: 'between' }, practiceTabs('diario')));
   let prompt = takeHandoff() || promptOfDay();
 
   const promptEl = h('p', { style: 'font-size:17px;line-height:1.4;font-family:var(--display)' }, prompt);
@@ -84,7 +91,30 @@ export async function render(main) {
     }, 250);
   };
 
-  // --- One entry
+  const { open, runAnalysis } = entryKit({ result, mine, level, refresh: () => refresh() });
+
+  // --- Progress and past entries
+  async function refresh() {
+    const all = (await db.all('diario')).sort((a, b) => b.at - a.at);
+    const done = all.filter((e) => e.result && e.result.words).slice(0, 14).reverse();
+    progressBox.replaceChildren(done.length >= 2 ? h('section', { class: 'card', style: 'gap:10px' },
+      h('span', { class: 'kicker' }, `TU PROGRESO · ÚLTIMAS ${done.length}`),
+      h('div', { class: 'between', style: 'align-items:center;flex-wrap:nowrap' },
+        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, `${done[done.length - 1].result.wpm} palabras/min`), h('div', { class: 'muted small' }, `empezaste en ${done[0].result.wpm}`)),
+        spark(done.map((e) => e.result.wpm), 'var(--accent)')),
+      h('div', { class: 'between', style: 'align-items:center;flex-wrap:nowrap' },
+        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, `${num(done[done.length - 1].result.errorRate)} errores cada 100`), h('div', { class: 'muted small' }, `empezaste en ${num(done[0].result.errorRate)} · más bajo es mejor`)),
+        spark(done.map((e) => e.result.errorRate), 'var(--native)'))) : '');
+    historyBox.replaceChildren(...(all.length ? [h('span', { class: 'kicker', style: 'margin-top:8px' }, 'TUS GRABACIONES'), calendar(all)] : []));
+  }
+  await refresh();
+
+  return () => { stopTick(); if (recorder.recording) recorder.stop(); mine.load(null); stopPcm(); };
+}
+
+// The pieces that show one entry (player, numbers, the teacher's review), shared by the Diario
+// screen (right after recording) and the entry's own page.
+function entryKit({ result, mine, level, refresh, onDelete }) {
   async function runAnalysis(entry) {
     result.replaceChildren(entryHead(entry), h('section', { class: 'card' }, h('p', { class: 'muted small' }, 'La profe está escuchando tu grabación…')));
     try {
@@ -115,7 +145,7 @@ export async function render(main) {
     const del = h('button', { type: 'button', class: 'pill', style: 'min-height:36px;font-size:12px' }, 'Borrar');
     del.onclick = async () => {
       if (!window.confirm('¿Borrar esta grabación?')) return;
-      mine.pause(); await db.remove('diario', entry.id); result.replaceChildren(); refresh();
+      mine.pause(); await db.remove('diario', entry.id); result.replaceChildren(); if (onDelete) onDelete(); else refresh();
     };
     const r = entry.result;
     return h('section', { class: 'card', style: 'gap:10px' },
@@ -144,30 +174,96 @@ export async function render(main) {
     }));
   }
 
-  // --- Progress and past entries
-  async function refresh() {
-    const all = (await db.all('diario')).sort((a, b) => b.at - a.at);
-    const done = all.filter((e) => e.result && e.result.words).slice(0, 14).reverse();
-    progressBox.replaceChildren(done.length >= 2 ? h('section', { class: 'card', style: 'gap:10px' },
-      h('span', { class: 'kicker' }, `TU PROGRESO · ÚLTIMAS ${done.length}`),
-      h('div', { class: 'between', style: 'align-items:center;flex-wrap:nowrap' },
-        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, `${done[done.length - 1].result.wpm} palabras/min`), h('div', { class: 'muted small' }, `empezaste en ${done[0].result.wpm}`)),
-        spark(done.map((e) => e.result.wpm), 'var(--accent)')),
-      h('div', { class: 'between', style: 'align-items:center;flex-wrap:nowrap' },
-        h('div', { style: 'flex:1;min-width:0' }, h('b', {}, `${num(done[done.length - 1].result.errorRate)} errores cada 100`), h('div', { class: 'muted small' }, `empezaste en ${num(done[0].result.errorRate)} · más bajo es mejor`)),
-        spark(done.map((e) => e.result.errorRate), 'var(--native)'))) : '');
-    historyBox.replaceChildren(...(all.length ? [h('span', { class: 'kicker', style: 'margin-top:8px' }, 'TUS GRABACIONES')] : []),
-      ...all.map((e) => {
-        const b = h('button', { type: 'button', class: 'card', style: 'text-align:left;cursor:pointer;font:inherit;color:inherit;gap:2px;padding:10px 12px' },
-          h('div', { class: 'between' }, h('b', { class: 'small' }, fmtDate(e.at)), h('span', { class: 'muted small' }, fmtTime(e.seconds))),
-          h('span', { class: 'small', style: 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' },
-            e.result ? e.result.transcript : 'Sin analizar todavía'),
-          e.result ? h('span', { class: 'muted small' }, `${e.result.wpm} palabras/min · ${num(e.result.errorRate)} errores cada 100`) : '');
-        b.onclick = () => { open(e); result.scrollIntoView({ behavior: 'smooth' }); };
-        return b;
-      }));
-  }
-  await refresh();
+  return { open, runAnalysis };
+}
 
-  return () => { stopTick(); if (recorder.recording) recorder.stop(); mine.load(null); stopPcm(); };
+// --- Monthly calendar of recordings: days with entries in the accent colour; tap one to see that day's entries.
+function calendar(all) {
+  const byDay = new Map();
+  for (const e of all) { const k = dayKey(e.at); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(e); }
+  const now = new Date();
+  const monthOf = (t) => { const d = new Date(t); return d.getFullYear() * 12 + d.getMonth(); };
+  const withEntries = new Set(all.map((e) => monthOf(e.at)));
+  const thisMonth = monthOf(now);
+  // Months you can go to: this month and every past month with entries.
+  const months = [...new Set([...withEntries, thisMonth])].filter((i) => i <= thisMonth).sort((a, b) => a - b);
+  if (!calMonth || !months.includes(calMonth.y * 12 + calMonth.m)) { const i = monthOf(all[0].at) <= thisMonth ? monthOf(all[0].at) : thisMonth; calMonth = { y: Math.floor(i / 12), m: i % 12 }; }
+  const box = h('section', { class: 'card cal', style: 'gap:10px' });
+  const draw = () => {
+    const { y, m } = calMonth, idx = y * 12 + m, pos = months.indexOf(idx);
+    const inMonth = all.filter((e) => monthOf(e.at) === idx);
+    const nDays = new Set(inMonth.map((e) => dayKey(e.at))).size;
+    const prev = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Mes anterior con grabaciones', disabled: pos <= 0 }, iconEl('prev'));
+    const next = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Mes siguiente', disabled: pos >= months.length - 1 }, iconEl('next'));
+    const go = (i) => { if (i < 0 || i >= months.length) return; calMonth = { y: Math.floor(months[i] / 12), m: months[i] % 12 }; draw(); };
+    prev.onclick = () => go(pos - 1); next.onclick = () => go(pos + 1);
+    const grid = h('div', { class: 'cal-grid', role: 'group', 'aria-label': `Grabaciones de ${MONTHS[m]} de ${y}` },
+      ...['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d) => h('span', { class: 'cal-wd', 'aria-hidden': 'true' }, d)));
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7; // weeks start on Monday
+    for (let i = 0; i < lead; i++) grid.append(h('span'));
+    const days = new Date(y, m + 1, 0).getDate();
+    for (let d = 1; d <= days; d++) {
+      const list = byDay.get(`${y}-${m}-${d}`);
+      const today = idx === thisMonth && d === now.getDate();
+      if (!list) { grid.append(h('span', { class: `cal-day${today ? ' today' : ''}` }, String(d))); continue; }
+      const b = h('button', { type: 'button', class: `cal-day on${today ? ' today' : ''}`, 'aria-haspopup': 'dialog', 'aria-label': `${d} de ${MONTHS[m]}: ${list.length} ${list.length > 1 ? 'grabaciones' : 'grabación'}` },
+        String(d), list.length > 1 ? h('span', { class: 'cal-n', 'aria-hidden': 'true' }, String(list.length)) : null);
+      b.onclick = () => dayModal(list, b);
+      grid.append(b);
+    }
+    box.replaceChildren(
+      h('div', { class: 'between', style: 'flex-wrap:nowrap' }, prev,
+        h('div', { style: 'text-align:center;display:flex;flex-direction:column;gap:2px', 'aria-live': 'polite' },
+          h('b', { style: 'font-family:var(--display);font-size:18px;text-transform:capitalize' }, `${MONTHS[m]} ${y}`),
+          h('span', { class: 'muted small' }, inMonth.length ? `${inMonth.length} ${inMonth.length > 1 ? 'grabaciones' : 'grabación'} en ${nDays} día${nDays > 1 ? 's' : ''}` : 'Sin grabaciones este mes')),
+        next),
+      grid,
+      h('p', { class: 'muted small', style: 'text-align:center' }, 'Tocá un día marcado para ver sus grabaciones.'));
+  };
+  draw();
+  return box;
+}
+
+// The entries of one day, in a floating panel; each opens on its own page.
+function dayModal(list, from) {
+  const sorted = [...list].sort((a, b) => a.at - b.at);
+  openModal((api) => {
+    api.box.setAttribute('aria-label', `Grabaciones del ${fmtLong(sorted[0].at)}`);
+    api.box.append(
+      h('div', { class: 'row', style: 'gap:10px;align-items:center' },
+        h('div', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' },
+          h('span', { class: 'kicker' }, `${sorted.length} ${sorted.length > 1 ? 'GRABACIONES' : 'GRABACIÓN'}`),
+          h('h2', { style: 'font-size:20px' }, fmtLong(sorted[0].at))),
+        closeBtn(api.close)),
+      ...sorted.map((e) => {
+        const a = h('a', { href: `#/diario?entrada=${encodeURIComponent(e.id)}`, class: 'card', style: 'text-decoration:none;color:inherit;gap:4px;padding:12px 14px;background:var(--bg)' },
+          h('div', { class: 'between', style: 'flex-wrap:nowrap' }, h('b', {}, `${fmtHour(e.at)} · ${fmtTime(e.seconds)}`), h('span', { style: 'color:var(--accent);font-weight:700;font-size:13px' }, 'Ver →')),
+          h('span', { class: 'small', style: 'font-family:var(--display);font-weight:600;line-height:1.35' }, e.prompt),
+          h('span', { class: 'muted small', style: 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.4' }, e.result ? e.result.transcript : 'Sin analizar todavía'),
+          e.result ? h('span', { class: 'muted', style: 'font-size:12px' }, `${e.result.wpm} palabras/min · ${num(e.result.errorRate)} errores cada 100`) : null);
+        a.onclick = () => api.close();
+        return a;
+      }));
+  }, from);
+}
+
+// --- One entry on its own page: everything the Diario shows for it, and a way back to the calendar.
+async function entryPage(main, id, level) {
+  const back = h('a', { href: '#/diario', class: 'pill', style: 'min-height:40px;display:inline-flex;align-items:center;text-decoration:none;flex:none', 'aria-label': 'Volver al Diario' }, '← Diario');
+  const entry = await db.get('diario', id);
+  if (!entry) {
+    main.append(h('div', { class: 'row', style: 'gap:12px' }, back, h('h1', { style: 'font-size:24px' }, 'Diario')),
+      h('section', { class: 'card empty' }, h('p', { class: 'muted' }, 'Esta grabación ya no está: se borró o todavía no llegó desde el otro dispositivo.')));
+    return () => {};
+  }
+  main.append(h('div', { class: 'row', style: 'gap:12px;min-width:0;flex-wrap:nowrap;align-items:center' }, back,
+    h('div', { style: 'min-width:0;display:flex;flex-direction:column;gap:2px' },
+      h('h1', { style: 'font-size:22px;line-height:1.2' }, fmtLong(entry.at)),
+      h('span', { class: 'muted small' }, `${fmtHour(entry.at)} · ${fmtTime(entry.seconds)}`))));
+  const result = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
+  main.append(result);
+  const mine = new Player();
+  const kit = entryKit({ result, mine, level, refresh: () => {}, onDelete: () => { location.hash = '#/diario'; } });
+  kit.open(entry);
+  return () => { mine.load(null); stopPcm(); };
 }

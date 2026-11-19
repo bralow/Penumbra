@@ -1,4 +1,4 @@
-import { h, toast, shuffle, pageHead, wide } from '../ui.js';
+import { h, toast, shuffle, pageHead, wide, openModal, closeBtn } from '../ui.js';
 import { SOUNDS, CONFUSABLE, WORDS, MEDIA, NARROW_LABEL, DETAIL, DIPHTHONGS } from '../ipadata.js';
 import { transcribe, narrow } from '../ipa.js';
 import { log, discover, TRACKED } from '../progress.js';
@@ -7,6 +7,7 @@ import { steps } from '../transform.js';
 import { phoneSay, stopPhone } from '../voz.js';
 
 let mode = 'simbolos';
+window.addEventListener('penumbra:modalclose', () => stopPhone());
 const soundIds = (w) => { const ipa = transcribe(w); return TRACKED.filter((s) => s.match(ipa)).map((s) => s.id); };
 const MODES = [['simbolos', 'Símbolos'], ['transformar', 'Transformar'], ['descifrar', 'Descifrar'], ['escribir', 'Escribir']];
 
@@ -38,42 +39,6 @@ function highlight(word, symbol, ipa = ipaOf(word)) {
   row.onclick = () => phoneSay(word);
   return row;
 }
-
-// --- Floating panel (modal) used by the sound board
-function openModal(build, returnTo) {
-  const scrim = h('div', { class: 'modal-scrim' });
-  const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', tabindex: '-1' });
-  scrim.append(box);
-  let onClose = null;
-  const close = () => {
-    if (!scrim.isConnected) return;
-    if (onClose) onClose();
-    scrim.remove();
-    document.removeEventListener('keydown', key, true);
-    document.body.style.overflow = '';
-    stopPhone();
-    if (returnTo) returnTo.focus({ preventScroll: true });
-  };
-  const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === 'Tab') trap(e); };
-  const trap = (e) => {
-    const f = [...box.querySelectorAll('button, a[href], video, input, [tabindex="0"]')].filter((x) => !x.disabled && x.offsetParent !== null);
-    if (!f.length) return;
-    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
-    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
-  };
-  scrim.addEventListener('pointerdown', (e) => { if (e.target === scrim) close(); });
-  document.addEventListener('keydown', key, true);
-  document.body.style.overflow = 'hidden';
-  document.body.append(scrim);
-  const api = { box, close, set onClose(fn) { onClose = fn; } };
-  build(api);
-  const first = box.querySelector('[data-close]');
-  (first || box).focus({ preventScroll: true });
-  return api;
-}
-
-const closeBtn = (close) => h('button', { type: 'button', class: 'icon-btn', 'data-close': '', 'aria-label': 'Cerrar', style: 'flex:none;width:40px;height:40px;border:1px solid var(--line)', onclick: close },
-  h('span', { html: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>', style: 'display:contents' }));
 
 function detailSwitch(onChange) {
   const sw = h('button', { type: 'button', role: 'switch', 'aria-checked': String(detailed()), class: 'switch' }, h('span', { class: 'knob' }));

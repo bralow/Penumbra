@@ -72,3 +72,41 @@ export function backHead(title, href = '#/practicar', label = 'Practicar') {
     h('a', { href, class: 'pill', style: 'min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;flex:none', 'aria-label': `Volver a ${label}` }, `← ${label}`),
     h('h1', { style: 'font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, title));
 }
+
+// Floating panel over the page (used by the IPA board and the Diario calendar).
+// Closes with the × button (closeBtn), Esc, or a tap outside; focus goes back to returnTo.
+export function openModal(build, returnTo) {
+  const scrim = h('div', { class: 'modal-scrim' });
+  const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', tabindex: '-1' });
+  scrim.append(box);
+  let onClose = null;
+  const close = () => {
+    if (!scrim.isConnected) return;
+    if (onClose) onClose();
+    scrim.remove();
+    document.removeEventListener('keydown', key, true);
+    document.body.style.overflow = '';
+    window.dispatchEvent(new Event('penumbra:modalclose'));
+    if (returnTo) returnTo.focus({ preventScroll: true });
+  };
+  const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === 'Tab') trap(e); };
+  const trap = (e) => {
+    const f = [...box.querySelectorAll('button, a[href], video, input, [tabindex="0"]')].filter((x) => !x.disabled && x.offsetParent !== null);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  };
+  scrim.addEventListener('pointerdown', (e) => { if (e.target === scrim) close(); });
+  document.addEventListener('keydown', key, true);
+  document.body.style.overflow = 'hidden';
+  document.body.append(scrim);
+  const api = { box, close, set onClose(fn) { onClose = fn; } };
+  build(api);
+  const first = box.querySelector('[data-close]');
+  (first || box).focus({ preventScroll: true });
+  return api;
+}
+
+export const closeBtn = (close) => h('button', { type: 'button', class: 'icon-btn', 'data-close': '', 'aria-label': 'Cerrar', style: 'flex:none;width:40px;height:40px;border:1px solid var(--line)', onclick: close },
+  h('span', { html: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>', style: 'display:contents' }));
+
