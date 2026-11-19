@@ -265,3 +265,27 @@ a.card:hover, button.card:hover { border-color: color-mix(in srgb, var(--accent)
   background: var(--surface); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line)); border-radius: 18px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, .35); padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 10px; outline: none; animation: popin .14s ease-out; }
 @keyframes popin { from { opacity: 0; transform: translateY(4px); } }
+
+/* IPA board: one card per sound, with a still from its video */
+.ipa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 8px; }
+@media (min-width: 1024px) { .ipa-grid { grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); } }
+.ipa-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 6px 8px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font: inherit; min-width: 0; }
+.ipa-card:hover { border-color: var(--accent); }
+.ipa-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ipa-card.ar { border-color: var(--accent); border-width: 2px; }
+.ipa-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #000; margin-bottom: 4px; }
+.ipa-card .sym { font-family: var(--ipa-font); font-size: 22px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+.ipa-card .nm { font-size: 10px; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ipa-card .dot-ar { position: absolute; top: 8px; right: 10px; color: var(--accent); font-size: 11px; text-shadow: 0 0 4px #000; }
+.ipa-card.dip { padding: 12px 6px; }
+.ipa-card .kind { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--accent); text-transform: uppercase; }
+/* Floating panel over the page */
+.modal-scrim { position: fixed; inset: 0; z-index: 70; background: rgba(0, 0, 0, .55); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fadein .15s; }
+.modal { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; background: var(--surface); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 24px 60px rgba(0, 0, 0, .45); outline: none; animation: popin .16s ease-out; }
+@media (max-width: 639px) { .modal-scrim { align-items: flex-end; padding: 0; } .modal { border-radius: 22px 22px 0 0; max-height: 92dvh; padding-bottom: calc(env(safe-area-inset-bottom) + 18px); } }
+@keyframes fadein { from { opacity: 0; } }
+/* On/off switch */
+.switch { width: 40px; height: 24px; border-radius: 999px; border: 1px solid var(--line); background: var(--chip); padding: 2px; display: inline-flex; align-items: center; flex: none; transition: background .15s; }
+.switch .knob { width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+.switch[aria-checked="true"] .knob { transform: translateX(16px); background: var(--accent-ink); }

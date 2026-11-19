@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.19-a (podcast: inspector de palabras flotante)';
+export const APP_VERSION = '2026.11.19-b (IPA: videos, diptongos e IPA detallada)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
@@ -57,11 +57,19 @@ shell.init({ version: APP_VERSION, onWideChange: () => { if (RESPONSIVE.has(curr
 const currentName = () => (location.hash.replace(/^#\/?/, '') || 'hoy').split('?')[0];
 let cleanup = null;
 let renderId = 0;
+// Where you were on each screen, so coming back to Practicar from one of its tools lands where you left it.
+const scrollMemo = new Map();
+let prevName = null;
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
 async function route() {
   const name = currentName();
   const r = routes[name] || routes.hoy;
   const id = ++renderId;
+  const from = prevName;
+  if (from) scrollMemo.set(from, window.scrollY);
+  prevName = name;
+  const restore = name === 'practicar' && from && from !== name && routes[from] && (routes[from].tab === 'practicar' || from === 'calentamiento' || from === 'cultura');
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   shell.update(r.tab);
   main.dataset.screen = routes[name] ? name : 'hoy';
@@ -76,7 +84,7 @@ async function route() {
     console.error(err);
     main.replaceChildren(h('section', { class: 'card' }, h('h2', {}, 'Algo salió mal'), h('p', { class: 'muted small' }, String(err && err.message || err))));
   }
-  window.scrollTo(0, 0);
+  window.scrollTo(0, restore ? scrollMemo.get('practicar') || 0 : 0);
 }
 
 window.addEventListener('hashchange', route);

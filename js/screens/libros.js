@@ -17,7 +17,8 @@ let openBook = null, openStory = null;
 const tagFor = (book) => (/abrazos/i.test(book.title) ? '#LibroDeLosAbrazos' : '#Libro');
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, readTabs('libros')));
+  const head = h('div', { class: 'between' }, readTabs('libros'));
+  main.append(head);
   const books = await db.all('books');
   // Books imported before the accent fix get repaired once, in place.
   for (let i = 0; i < books.length; i++) {
@@ -28,7 +29,7 @@ export async function render(main) {
   if (openBook && openBook !== '__library__' && !books.some((b) => b.id === openBook)) { openBook = null; openStory = null; }
   if (!openBook && books.length === 1) openBook = books[0].id;
   const book = books.find((b) => b.id === openBook);
-  if (book && openStory !== null && book.stories[openStory]) return storyView(main, book, openStory);
+  if (book && openStory !== null && book.stories[openStory]) { head.remove(); return storyView(main, book, openStory); }
   if (book) return bookView(main, book, books.length);
   return libraryView(main, books);
 }

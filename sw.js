@@ -3,7 +3,7 @@
 // (cache-busting query, so GitHub's CDN can't hand back a stale copy). The app then runs
 // entirely from that snapshot, so old and new files can never mix. When sw.js changes,
 // the browser installs the new snapshot, swaps it in, and the page reloads once.
-const VERSION = '2026.11.19-a';
+const VERSION = '2026.11.19-b';
 const CACHE = 'cadencia-' + VERSION;
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
@@ -27,7 +27,7 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== 'cadencia-fonts' && k !== 'cadencia-vendor').map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== CACHE && k !== 'cadencia-fonts' && k !== 'cadencia-vendor' && k !== 'cadencia-media').map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
@@ -47,6 +47,11 @@ self.addEventListener('fetch', (e) => {
   // Big, rarely-changing libraries (PDF reader): cache once, outside the per-release snapshot.
   if (url.pathname.includes('/vendor/pdfjs/')) {
     e.respondWith(caches.open('cadencia-vendor').then((c) => c.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }))));
+    return;
+  }
+  // IPA videos and stills: cached the first time they're seen, kept across releases.
+  if (url.pathname.includes('/media/')) {
+    e.respondWith(caches.open('cadencia-media').then((c) => c.match(req, { ignoreSearch: true }).then((hit) => hit || fetch(req).then((res) => { if (res.ok && res.status === 200) c.put(req, res.clone()); return res; }))));
     return;
   }
   // Pages that aren't part of the app (the LenguaTube privacy policy) always come from the web.

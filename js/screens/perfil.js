@@ -31,7 +31,7 @@ export async function render(main) {
   grid.append(h('section', { class: 'card' },
     pillGroup('Velocidad inicial', ['0.5', '0.75', '1'], s.speed, (v) => setSetting('speed', v), { cls: 'grid3', fmt: (x) => (x === '1' ? '1.0x' : x + 'x') })));
 
-  // Appearance: theme, accent, density, your name, which blocks Hoy shows.
+  // Appearance: accent, density, your name, which blocks Hoy shows. (Light/dark is the button in the top bar.)
   const ACCENTS = [['cian', 'Cian', '#2AB4D6'], ['azul', 'Azul', '#8FA8FF'], ['menta', 'Menta', '#5EEAD4'], ['ambar', 'Ámbar', '#FFB86B'], ['lila', 'Lila', '#E9A8FF']];
   const swatches = ACCENTS.map(([k, l, c]) => {
     const b = h('button', { type: 'button', class: 'pill', 'aria-pressed': String((s.accent || 'cian') === k), style: 'display:flex;align-items:center;gap:6px;justify-content:center;min-width:0;border-radius:12px' },
@@ -50,7 +50,6 @@ export async function render(main) {
   });
   grid.append(h('section', { class: 'card' },
     h('span', { class: 'kicker' }, 'APARIENCIA'),
-    pillGroup('Tema', ['dark', 'light', 'system'], s.theme, (v) => setSetting('theme', v), { cls: 'grid3', fmt: (x) => ({ system: 'Del teléfono', light: 'Claro', dark: 'Oscuro' })[x] }),
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Color de acento'), h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px' }, swatches),
     pillGroup('Densidad', ['comoda', 'compacta'], s.density || 'comoda', (v) => setSetting('density', v), { cls: 'grid3', fmt: (x) => ({ comoda: 'Cómoda', compacta: 'Compacta' })[x] }),
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Tu nombre'), name,

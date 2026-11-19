@@ -65,3 +65,10 @@ export function pageHead(kicker, title, ...actions) {
 
 // True when the PC layout (side menu, several columns) is showing.
 export const wide = () => window.matchMedia('(min-width: 1024px)').matches;
+
+// Header for a screen inside Practicar: back to the overview (which keeps its scroll position) and the title.
+export function backHead(title, href = '#/practicar', label = 'Practicar') {
+  return h('div', { class: 'row', style: 'gap:12px;min-width:0;flex-wrap:nowrap' },
+    h('a', { href, class: 'pill', style: 'min-height:40px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;flex:none', 'aria-label': `Volver a ${label}` }, `← ${label}`),
+    h('h1', { style: 'font-size:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis' }, title));
+}

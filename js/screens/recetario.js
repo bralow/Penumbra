@@ -52,9 +52,9 @@ function stepWithVerbs(text, onVerb) {
 }
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, readTabs('recetas')));
   const r = RECETAS.find((x) => x.id === openId);
   if (r) return detail(main, r);
+  main.append(h('div', { class: 'between' }, readTabs('recetas')));
   return list(main);
 }
 

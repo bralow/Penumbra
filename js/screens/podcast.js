@@ -18,10 +18,10 @@ const clock = (s) => { s = Math.max(0, Math.floor(s || 0)); const h_ = Math.floo
 const clean = (w) => w.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, readTabs('podcast')));
   const eps = (await db.all('episodes')).sort((a, b) => a.show.localeCompare(b.show) || a.n - b.n);
   const ep = openEp && eps.find((e) => e.id === openEp);
   if (ep) return episodeView(main, ep);
+  main.append(h('div', { class: 'between' }, readTabs('podcast')));
   openEp = null;
   return listView(main, eps);
 }

@@ -1,6 +1,6 @@
 import { h, toast, shuffle, pageHead, wide } from '../ui.js';
-import { SOUNDS, CONFUSABLE, WORDS } from '../ipadata.js';
-import { transcribe } from '../ipa.js';
+import { SOUNDS, CONFUSABLE, WORDS, MEDIA, NARROW_LABEL, DETAIL, DIPHTHONGS } from '../ipadata.js';
+import { transcribe, narrow } from '../ipa.js';
 import { log, discover, TRACKED } from '../progress.js';
 import { mouthSVG, describe } from '../boca.js';
 import { steps } from '../transform.js';
@@ -21,72 +21,183 @@ function tokens(ipa) {
   return out;
 }
 
-function highlight(word, symbol) {
-  // Show the word with its IPA; the sound in question is underlined inside the IPA.
-  const ipa = transcribe(word);
-  const parts = symbol === 'tʃ' ? ipa.split('tʃ') : ipa.split(symbol);
-  const nodes = [];
-  parts.forEach((p, i) => { nodes.push(p); if (i < parts.length - 1) nodes.push(h('b', { style: 'color:var(--accent);text-decoration:underline;text-underline-offset:3px' }, symbol)); });
-  return h('div', { class: 'between', style: 'padding:6px 0;border-bottom:1px solid var(--line)' },
-    h('span', { style: 'font-family:var(--display);font-size:18px;font-weight:600', lang: 'es-AR' }, word),
-    h('span', { class: 'ipa' }, ...nodes));
+// "IPA detallada": narrow Rioplatense transcription with diacritics. Off by default; remembered.
+const DET = 'cadencia.ipa.detallada';
+const detailed = () => { try { return localStorage.getItem(DET) === '1'; } catch { return false; } };
+const setDetailed = (on) => { try { localStorage.setItem(DET, on ? '1' : '0'); } catch { /* ignore */ } };
+const ipaOf = (word, det = detailed()) => (det ? narrow(transcribe(word)) : transcribe(word));
+const COMB = '[̀-ͯ]*';
+const symRe = (sym) => new RegExp(`(${[...sym].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(COMB)}${COMB})`, 'g');
+
+// A word with its transcription; the sound in question is underlined inside the IPA. Tap to hear it.
+function highlight(word, symbol, ipa = ipaOf(word)) {
+  const nodes = ipa.split(symRe(symbol)).map((part, i) => (i % 2 ? h('b', { style: 'color:var(--accent);text-decoration:underline;text-underline-offset:3px' }, part) : part));
+  const row = h('button', { type: 'button', class: 'between', title: 'Tocá para escucharla', style: 'all:unset;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:8px 2px;border-bottom:1px solid var(--line);cursor:pointer' },
+    h('span', { style: 'font-family:var(--display);font-size:17px;font-weight:600', lang: 'es-AR' }, '▶ ', word),
+    h('span', { class: 'ipa', style: 'text-align:right' }, ...nodes));
+  row.onclick = () => phoneSay(word);
+  return row;
+}
+
+// --- Floating panel (modal) used by the sound board
+function openModal(build, returnTo) {
+  const scrim = h('div', { class: 'modal-scrim' });
+  const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', tabindex: '-1' });
+  scrim.append(box);
+  let onClose = null;
+  const close = () => {
+    if (!scrim.isConnected) return;
+    if (onClose) onClose();
+    scrim.remove();
+    document.removeEventListener('keydown', key, true);
+    document.body.style.overflow = '';
+    stopPhone();
+    if (returnTo) returnTo.focus({ preventScroll: true });
+  };
+  const key = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } else if (e.key === 'Tab') trap(e); };
+  const trap = (e) => {
+    const f = [...box.querySelectorAll('button, a[href], video, input, [tabindex="0"]')].filter((x) => !x.disabled && x.offsetParent !== null);
+    if (!f.length) return;
+    if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+    else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+  };
+  scrim.addEventListener('pointerdown', (e) => { if (e.target === scrim) close(); });
+  document.addEventListener('keydown', key, true);
+  document.body.style.overflow = 'hidden';
+  document.body.append(scrim);
+  const api = { box, close, set onClose(fn) { onClose = fn; } };
+  build(api);
+  const first = box.querySelector('[data-close]');
+  (first || box).focus({ preventScroll: true });
+  return api;
+}
+
+const closeBtn = (close) => h('button', { type: 'button', class: 'icon-btn', 'data-close': '', 'aria-label': 'Cerrar', style: 'flex:none;width:40px;height:40px;border:1px solid var(--line)', onclick: close },
+  h('span', { html: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>', style: 'display:contents' }));
+
+function detailSwitch(onChange) {
+  const sw = h('button', { type: 'button', role: 'switch', 'aria-checked': String(detailed()), class: 'switch' }, h('span', { class: 'knob' }));
+  sw.onclick = () => { const on = !detailed(); setDetailed(on); sw.setAttribute('aria-checked', String(on)); onChange(on); };
+  return h('label', { class: 'row', style: 'gap:8px;cursor:pointer;font-size:13px;font-weight:600' }, sw, 'IPA detallada');
+}
+
+// The sound's video (Seeing Speech), loaded as a file so it also works offline once seen.
+function soundVideo(slug, api) {
+  const video = h('video', { controls: true, playsinline: true, preload: 'none', poster: `media/ipa/${slug}.jpg`, 'aria-label': 'Video de la articulación', style: 'width:100%;max-height:340px;aspect-ratio:1;object-fit:contain;background:#000;border-radius:14px' });
+  let blobUrl = null;
+  fetch(`media/ipa/${slug}.mp4`).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(r.status)))).then((b) => { blobUrl = URL.createObjectURL(b); video.src = blobUrl; })
+    .catch(() => { video.replaceWith(h('p', { class: 'muted small' }, 'No pude cargar el video (sin conexión la primera vez).')); });
+  const slow = h('button', { type: 'button', class: 'pill', 'aria-pressed': 'false', style: 'min-height:36px;font-size:12px' }, 'Lento 0.5×');
+  slow.onclick = () => { const on = slow.getAttribute('aria-pressed') !== 'true'; slow.setAttribute('aria-pressed', String(on)); video.playbackRate = on ? 0.5 : 1; video.defaultPlaybackRate = on ? 0.5 : 1; };
+  api.onClose = () => { video.pause(); if (blobUrl) URL.revokeObjectURL(blobUrl); };
+  return h('div', { style: 'display:flex;flex-direction:column;gap:6px' }, video,
+    h('div', { class: 'between' }, slow, h('span', { class: 'muted', style: 'font-size:10px' }, 'Video: Seeing Speech, University of Glasgow / Strathclyde')));
+}
+
+function facts(symbol) {
+  const d = describe(symbol);
+  if (!d) return null;
+  const fact = (k, v) => h('div', { style: 'display:flex;flex-direction:column' }, h('span', { style: 'font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--muted)' }, k), h('span', { style: 'font-size:13px;line-height:1.3' }, v));
+  return h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--soft);border-radius:14px;padding:12px' },
+    fact('DÓNDE', d.place), fact('CÓMO', d.manner),
+    fact('CUERDAS VOCALES', d.voice ? 'vibran (zigzag)' : 'no vibran'), fact('AIRE', d.nasal ? 'por la nariz (velo bajo)' : 'por la boca (velo arriba)'));
+}
+
+function variants(list) {
+  return h('section', { style: 'display:flex;flex-direction:column;gap:10px;border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line));border-radius:14px;padding:12px' },
+    h('span', { class: 'kicker' }, 'VARIANTES RIOPLATENSES (IPA DETALLADA)'),
+    ...list.map(([sym, where, ex]) => h('div', { style: 'display:flex;flex-direction:column;gap:4px' },
+      h('div', { class: 'row', style: 'gap:10px;align-items:baseline' }, h('span', { style: 'font-family:var(--ipa-font);font-size:24px;color:var(--accent);min-width:46px' }, `[${sym}]`), h('span', { class: 'small', style: 'line-height:1.4' }, where)),
+      h('div', { style: 'padding-left:56px' }, ex.map((e) => (Array.isArray(e) ? highlight(e[0], sym.split(' ')[0], e[1]) : highlight(e, sym.split(' ')[0], narrow(transcribe(e)))))))));
+}
+
+function soundModal(x, card, repaint) {
+  discover(`[${x.s}]`);
+  openModal((api) => {
+    const draw = () => {
+      const det = detailed();
+      api.box.setAttribute('aria-label', `Sonido ${x.s}: ${x.name}`);
+      api.box.replaceChildren(
+        h('div', { class: 'row', style: 'gap:12px;align-items:center' },
+          h('span', { style: 'font-family:var(--ipa-font);font-size:44px;line-height:1;color:var(--accent)' }, `[${det && NARROW_LABEL[x.s] ? NARROW_LABEL[x.s].split(' · ').pop() : x.s}]`),
+          h('div', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px' },
+            h('h2', { style: 'font-size:22px' }, x.name),
+            h('div', { class: 'row wrap', style: 'gap:6px' }, h('span', { class: 'chip' }, x.group.toUpperCase()), x.ar ? h('span', { class: 'chip', style: 'background:var(--accent);color:var(--accent-ink)' }, 'RIOPLATENSE') : '')),
+          closeBtn(api.close)),
+        h('div', { class: 'between' }, detailSwitch(() => { draw(); repaint(); }), h('span', { class: 'muted', style: 'font-size:11px' }, 'Esc o tocá afuera para cerrar')),
+        h('p', { style: 'font-size:15px;line-height:1.5' }, x.how),
+        MEDIA[x.s] ? soundVideo(MEDIA[x.s], api) : h('div', { html: mouthSVG(x.s) }),
+        facts(x.s),
+        h('div', {}, h('span', { class: 'kicker', style: 'color:var(--muted)' }, 'EJEMPLOS · TOCÁ PARA ESCUCHAR'), ...x.ex.map((w) => highlight(w, x.s))),
+        det && DETAIL[x.s] ? variants(DETAIL[x.s]) : null);
+    };
+    draw();
+  }, card);
+}
+
+function diphthongModal(d, card, repaint) {
+  discover(`[${d.s}]`);
+  const broad = d.s.replace('i̯', 'j').replace('u̯', 'w');
+  openModal((api) => {
+    const draw = () => {
+      const det = detailed();
+      const mouthAt = (sym, label) => h('figure', { style: 'margin:0;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0' },
+        h('div', { html: mouthSVG(sym), style: 'width:100%' }), h('figcaption', { class: 'small', style: 'font-family:var(--ipa-font)' }, label));
+      api.box.setAttribute('aria-label', `Diptongo ${d.sp}`);
+      api.box.replaceChildren(
+        h('div', { class: 'row', style: 'gap:12px;align-items:center' },
+          h('span', { style: 'font-family:var(--ipa-font);font-size:44px;line-height:1;color:var(--accent)' }, `[${d.s}]`),
+          h('div', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px' },
+            h('h2', { style: 'font-size:22px' }, `Diptongo «${d.sp}»`),
+            h('div', { class: 'row wrap', style: 'gap:6px' }, h('span', { class: 'chip' }, d.kind === 'creciente' ? 'CRECIENTE · SEMIVOCAL + VOCAL' : 'DECRECIENTE · VOCAL + SEMIVOCAL'))),
+          closeBtn(api.close)),
+        h('div', { class: 'between' }, detailSwitch(() => { draw(); repaint(); }), h('span', { class: 'muted', style: 'font-size:11px' }, 'Esc o tocá afuera para cerrar')),
+        h('p', { style: 'font-size:15px;line-height:1.5' }, d.how),
+        h('div', { style: 'display:flex;align-items:center;gap:6px;background:var(--soft);border-radius:14px;padding:8px' },
+          mouthAt(d.from, `empieza: [${d.from === 'j' && d.kind === 'decreciente' ? 'i̯' : d.from}]`), h('span', { 'aria-hidden': 'true', style: 'font-size:22px;color:var(--accent)' }, '→'),
+          mouthAt(d.to, `termina: [${d.kind === 'decreciente' ? (d.to === 'j' ? 'i̯' : 'u̯') : d.to}]`)),
+        h('div', {}, h('span', { class: 'kicker', style: 'color:var(--muted)' }, 'EJEMPLOS · TOCÁ PARA ESCUCHAR'), ...d.ex.map((w) => highlight(w, det ? d.s : broad))),
+        det ? h('p', { class: 'small', style: 'line-height:1.45;border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line));border-radius:14px;padding:10px 12px' },
+          d.kind === 'creciente' ? `La semivocal [${d.s[0]}] va antes de la vocal y se pronuncia rapidísimo, deslizándose hacia ella.` : `La marca ̯ en [${d.s.slice(1)}] indica que esa vocal no forma sílaba: es el final del deslizamiento.`,
+          d.ex.length ? h('br') : '', ...d.ex.map((w, i) => [i ? ' · ' : '', h('span', { class: 'ipa' }, `${w} ${narrow(transcribe(w))}`)]).flat()) : null);
+    };
+    draw();
+  }, card);
 }
 
 function soundboard(root) {
-  const isWide = wide();
-  const detail = h('section', { class: 'hero', hidden: !isWide, 'aria-live': 'polite', style: 'padding:16px 18px;gap:8px' });
-  if (isWide) detail.append(h('span', { class: 'kicker' }, 'ARTICULACIÓN'), h('p', { style: 'font-size:15px;line-height:1.45' }, 'Tocá un sonido del tablero para ver dónde y cómo se hace, con ejemplos para escuchar.'));
+  const det = detailed();
+  const box = h('section', { class: 'card', style: 'gap:10px;padding:18px' });
+  root.append(box);
+  const cards = [];
+  const repaint = () => { const on = detailed(); cards.forEach(({ el, x }) => { el.querySelector('.sym').textContent = on && NARROW_LABEL[x.s] ? NARROW_LABEL[x.s] : x.s; }); boardSwitch.firstChild.setAttribute('aria-checked', String(on)); };
+  const boardSwitch = detailSwitch(repaint);
+  box.append(h('div', { class: 'between' }, h('h2', { style: 'font-size:17px' }, `Tablero de sonidos (${SOUNDS.length}) y diptongos (${DIPHTHONGS.length})`), boardSwitch),
+    h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Todos los sonidos del español rioplatense. Los marcados con ', h('b', { style: 'color:var(--accent)' }, '●'), ' son los que delatan el acento porteño. Tocá uno para ver el video y cómo se hace.'));
   const groups = [...new Set(SOUNDS.map((x) => x.group))];
-  const page = root;
-  if (isWide) {
-    const boardCol = h('section', { class: 'card', style: 'gap:10px;padding:20px' });
-    page.append(h('div', { class: 'cols board-side' }, boardCol, h('div', { class: 'col sticky' }, detail)));
-    root = boardCol;
-    root.append(h('div', { class: 'between' }, h('h2', { style: 'font-size:17px' }, `Tablero de sonidos (${SOUNDS.length})`), h('span', { class: 'tag' }, 'Porteño')));
-  }
-  root.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Todos los sonidos del español rioplatense. Los marcados con ', h('b', { style: 'color:var(--accent)' }, '●'), ' son los que delatan el acento porteño. Tocá uno para ver cómo se hace.'));
   for (const g of groups) {
-    root.append(h('h3', { style: 'font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:4px' }, g.toUpperCase()));
-    root.append(h('div', { style: 'display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px' }, SOUNDS.filter((x) => x.group === g).map((x) => {
-      const b = h('button', { type: 'button', class: 'pill', 'aria-label': `${x.s}: ${x.name}`, style: `min-height:64px;border-radius:14px;display:flex;flex-direction:column;gap:2px;position:relative;${x.ar ? 'border-color:var(--accent);border-width:2px' : ''}` },
-        h('span', { style: 'font-family:var(--ipa-font);font-size:24px;font-weight:500' }, x.s),
-        h('span', { style: 'font-size:10px;font-weight:600;color:var(--muted)' }, x.name),
-        x.ar ? h('span', { 'aria-hidden': 'true', style: 'position:absolute;top:4px;right:7px;color:var(--accent);font-size:11px' }, '●') : null);
-      b.onclick = () => {
-        discover(`[${x.s}]`);
-        detail.replaceChildren(
-          h('div', { class: 'row', style: 'gap:12px;align-items:baseline' },
-            h('span', { style: 'font-family:var(--ipa-font);font-size:40px;color:var(--gold-text)' }, `[${x.s}]`),
-            h('span', { style: 'font-family:var(--display);font-size:22px;font-weight:700' }, x.name),
-            x.ar ? h('span', { class: 'chip', style: 'background:var(--accent);color:var(--accent-ink)' }, 'RIOPLATENSE') : ''),
-          h('p', { style: 'font-size:15px;line-height:1.45' }, x.how),
-          mouth(x.s),
-          h('div', { style: 'background:var(--surface);color:var(--ink);border-radius:14px;padding:4px 14px' }, x.ex.map((w) => {
-            const row = highlight(w, x.s);
-            row.style.cursor = 'pointer'; row.title = 'Tocá para escucharla';
-            row.onclick = () => phoneSay(w);
-            return row;
-          })),
-          h('p', { class: 'small', style: 'opacity:.8' }, 'Tocá un ejemplo para escucharlo.'));
-        detail.hidden = false;
-        if (!isWide) detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      };
+    box.append(h('h3', { style: 'font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:4px' }, g.toUpperCase()));
+    box.append(h('div', { class: 'ipa-grid' }, SOUNDS.filter((x) => x.group === g).map((x) => {
+      const b = h('button', { type: 'button', class: `ipa-card${x.ar ? ' ar' : ''}`, 'aria-label': `${x.s}: ${x.name}`, 'aria-haspopup': 'dialog' },
+        MEDIA[x.s] ? h('img', { src: `media/ipa/${MEDIA[x.s]}.jpg`, alt: '', loading: 'lazy', decoding: 'async' }) : null,
+        h('span', { class: 'sym' }, det && NARROW_LABEL[x.s] ? NARROW_LABEL[x.s] : x.s),
+        h('span', { class: 'nm' }, x.name),
+        x.ar ? h('span', { class: 'dot-ar', 'aria-hidden': 'true' }, '●') : null);
+      b.onclick = () => soundModal(x, b, repaint);
+      cards.push({ el: b, x });
       return b;
     })));
   }
-  if (!isWide) root.append(detail);
-}
-
-// Side view of the mouth for one sound, with what to notice.
-function mouth(symbol) {
-  const d = describe(symbol);
-  if (!d) return '';
-  const fact = (k, v) => h('div', { style: 'display:flex;flex-direction:column' }, h('span', { style: 'font-size:10px;font-weight:700;letter-spacing:.08em;opacity:.75' }, k), h('span', { style: 'font-size:13px;line-height:1.3' }, v));
-  return h('div', { style: 'background:var(--surface);color:var(--ink);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px' },
-    h('div', { html: mouthSVG(symbol) }),
-    h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' },
-      fact('DÓNDE', d.place), fact('CÓMO', d.manner),
-      fact('CUERDAS VOCALES', d.voice ? 'vibran (zigzag)' : 'no vibran'), fact('AIRE', d.nasal ? 'por la nariz (velo bajo)' : 'por la boca (velo arriba)')));
+  box.append(h('h3', { style: 'font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--muted);margin-top:8px' }, 'DIPTONGOS'),
+    h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Dos vocales en una sola sílaba: la i o la u se vuelven semivocal. Crecientes: la semivocal va primero ([j], [w]). Decrecientes: va al final ([i̯], [u̯]).'));
+  for (const kind of ['creciente', 'decreciente']) {
+    box.append(h('div', { class: 'ipa-grid' }, DIPHTHONGS.filter((d) => d.kind === kind).map((d) => {
+      const b = h('button', { type: 'button', class: 'ipa-card dip', 'aria-label': `Diptongo ${d.sp}: [${d.s}]`, 'aria-haspopup': 'dialog' },
+        h('span', { class: 'sym' }, d.s), h('span', { class: 'nm' }, `${d.sp} · ${d.ex[0]}`), h('span', { class: 'kind' }, kind));
+      b.onclick = () => diphthongModal(d, b, repaint);
+      return b;
+    })));
+  }
 }
 
 // Transformar: watch a word or phrase become porteño, one rule at a time.
@@ -234,7 +345,7 @@ export async function render(main) {
   const tabs = MODES.map(([k, label]) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(k === mode) }, label));
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   tabs.forEach((b, i) => { b.onclick = () => { mode = MODES[i][0]; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); draw(); }; });
-  main.append(pageHead(`FONÉTICA RIOPLATENSE · ${SOUNDS.length} SONIDOS`, 'IPA y pronunciación', h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs)), body);
+  main.append(pageHead(`FONÉTICA RIOPLATENSE · ${SOUNDS.length} SONIDOS · ${DIPHTHONGS.length} DIPTONGOS`, 'IPA y pronunciación', h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs)), body);
   function draw() {
     body.replaceChildren();
     body.style.maxWidth = wide() && (mode === 'descifrar' || mode === 'escribir') ? '760px' : '';

@@ -1,4 +1,4 @@
-import { h, iconEl, toast, LEVELS, shuffle } from '../ui.js';
+import { h, iconEl, toast, LEVELS, shuffle, backHead } from '../ui.js';
 import { db } from '../db.js';
 import { getSettings } from '../settings.js';
 import { transcribe } from '../ipa.js';
@@ -12,14 +12,9 @@ const SESSION = 10;
 let session = null; // survives tab switches: { ids, index, level }
 let viewMode = 'wave'; // 'wave' | 'pitch'
 
-export function practiceTabs(active) {
-  const tabs = [['sombra', 'Sombra'], ['charla', 'Charla'], ['escribir', 'Escribir'], ['diario', 'Diario'], ['vos', 'Vos'], ['oido', 'Oído'], ['traba', 'Trabalenguas'], ['elision', 'Elisión'], ['cognados', 'Cognados']];
-  const routes = { sombra: '#/sombra', charla: '#/charla', escribir: '#/escribir', diario: '#/diario', vos: '#/vos', oido: '#/oido', traba: '#/trabalenguas', elision: '#/elision', cognados: '#/cognados' };
-  const el = h('div', { class: 'seg scroll', role: 'navigation', 'aria-label': 'Modo de práctica' },
-    tabs.map(([k, label]) => (k === active ? h('span', { class: 'on', 'aria-current': 'page' }, label) : h('a', { href: routes[k] }, label))));
-  requestAnimationFrame(() => { const on = el.querySelector('.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' }); });
-  return el;
-}
+// Header for the speaking and writing tools: back to Practicar and the tool's name.
+const TITLES = { sombra: 'Sombra', charla: 'Charla', escribir: 'Escribir', diario: 'Diario', vos: 'Vos', oido: 'Oído', traba: 'Trabalenguas', elision: 'Elisión', cognados: 'Cognados' };
+export function practiceTabs(active) { return backHead(TITLES[active] || 'Practicar'); }
 
 export async function render(main) {
   const settings = getSettings();
