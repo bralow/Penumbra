@@ -1,4 +1,4 @@
-import { h } from '../ui.js';
+import { h, backHead } from '../ui.js';
 import { transcribe } from '../ipa.js';
 import { stopSpeaking } from '../tts.js';
 import { showWordPanel, tappableText, markWord, sentenceWith } from '../wordpanel.js';
@@ -7,18 +7,9 @@ const KEY = 'cadencia.leer';
 const SAMPLE = 'Che, ¿vamos a tomar unos mates a la plaza? Llevo la yerba y el termo. Si llueve, nos quedamos en casa y miramos el partido.';
 let view = 'text';
 
-export function readTabs(active) {
-  const el = h('div', { class: 'seg scroll', role: 'navigation', 'aria-label': 'Leer' },
-    active === 'lectura' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Lectura') : h('a', { href: '#/leer' }, 'Lectura'),
-    active === 'lunfardo' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Lunfardo') : h('a', { href: '#/lunfardo' }, 'Lunfardo'),
-    active === 'libros' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Libros') : h('a', { href: '#/libros' }, 'Libros'),
-    active === 'recetas' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Recetas') : h('a', { href: '#/recetas' }, 'Recetas'),
-    active === 'podcast' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Podcast') : h('a', { href: '#/podcast' }, 'Podcast'),
-    active === 'canciones' ? h('span', { class: 'on', 'aria-current': 'page' }, 'Canciones') : h('a', { href: '#/canciones' }, 'Canciones'),
-    active === 'ipa' ? h('span', { class: 'on', 'aria-current': 'page' }, 'IPA') : h('a', { href: '#/ipa' }, 'IPA'));
-  requestAnimationFrame(() => { const on = el.querySelector('.on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' }); });
-  return el;
-}
+// Header for the reading and listening tools: back to Practicar and the tool's name.
+const TITLES = { lectura: 'Lectura', lunfardo: 'Lunfardo', libros: 'Libros', recetas: 'Recetas', podcast: 'Podcast', canciones: 'Canciones', ipa: 'IPA' };
+export function readTabs(active) { return backHead(TITLES[active] || 'Practicar'); }
 
 export async function render(main) {
   let text = localStorage.getItem(KEY) || SAMPLE;

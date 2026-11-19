@@ -47,3 +47,74 @@ export const WORDS = ['calle', 'lluvia', 'ayer', 'mismo', 'después', 'ciudad', 
   'trabajo', 'cerveza', 'chico', 'ella', 'playa', 'yo', 'tenés', 'querés', 'vení', 'decime', 'pibe', 'laburo', 'quilombo', 'bondi', 'guita', 'fiaca',
   'birra', 'feca', 'pucho', 'boludo', 'mate', 'yerba', 'cuchillo', 'llave', 'estás', 'buscar', 'mosca', 'rápido', 'agua', 'cada', 'tengo', 'banco',
   'enfermo', 'jugo', 'lunfardo', 'arroyo', 'pollo', 'gallina', 'caballo', 'cebolla', 'castellano', 'mayo'];
+
+// Video of each sound (Seeing Speech, University of Glasgow / Strathclyde), in media/ipa/<file>.mp4
+// with a still frame in media/ipa/<file>.jpg. Keyed by the symbol used in SOUNDS.
+export const MEDIA = { a: 'a', e: 'e', i: 'i', o: 'o', u: 'u', j: 'j', w: 'w', p: 'p', b: 'b', t: 't', d: 'd', k: 'k', g: 'g',
+  'β': 'beta', 'ð': 'eth', 'ɣ': 'gamma', f: 'f', s: 's', h: 'h', x: 'x', 'ʃ': 'esh', 'tʃ': 'tesh',
+  m: 'm', n: 'n', 'ɲ': 'enye', 'ŋ': 'eng', 'ɱ': 'mhook', l: 'l', 'ɾ': 'tap', r: 'r' };
+
+// With "IPA detallada" on, the board shows these narrow forms on the cards.
+export const NARROW_LABEL = { 'β': 'β̞', 'ð': 'ð̞', 'ɣ': 'ɣ̞', t: 't̪', d: 'd̪', 'tʃ': 't͡ʃ', j: 'j · i̯', w: 'w · u̯', a: 'a · ã', e: 'e · ẽ', i: 'i · ĩ', o: 'o · õ', u: 'u · ũ', n: 'n · n̪', l: 'l · l̪', 'ɾ': 'ɾ · ɾ̥', h: 'h · ɦ', s: 's · s̬' };
+
+// Rioplatense variants of each sound, for "IPA detallada": [narrow symbol, where it happens, examples].
+// An example is a word (transcribed by the app) or [word, transcription] when the app's rules don't cover it.
+export const DETAIL = {
+  a: [['ã', 'nasalizada antes de m o n en la misma sílaba: el velo baja un poco antes de la consonante', ['campo', 'santo']]],
+  e: [['ẽ', 'nasalizada antes de nasal en la misma sílaba', ['tengo', 'bien']]],
+  i: [['ĩ', 'nasalizada antes de nasal en la misma sílaba', ['lindo', 'tinto']]],
+  o: [['õ', 'nasalizada antes de nasal en la misma sílaba', ['once', 'pongo']]],
+  u: [['ũ', 'nasalizada antes de nasal en la misma sílaba', ['mundo', 'un']]],
+  j: [['j', 'al principio del diptongo (creciente): la i se desliza hacia la vocal fuerte', ['bien', 'familia']],
+    ['i̯', 'al final del diptongo (decreciente): una i que no forma sílaba (la marca ̯ = no silábica)', ['hoy', 'aire', 'seis']]],
+  w: [['w', 'al principio del diptongo (creciente), con los labios redondos', ['bueno', 'cuatro']],
+    ['u̯', 'al final del diptongo (decreciente), sin formar sílaba', ['auto', 'deuda']]],
+  p: [['p', 'sin aspiración: no sale soplo después, a diferencia del inglés [pʰ]', ['pan', 'papá']]],
+  b: [['b', 'oclusiva: después de pausa o de m/n', ['bondi', 'un vaso']], ['β̞', 'aproximante: en las demás posiciones (ver β)', ['la vaca', 'lobo']]],
+  t: [['t̪', 'dental (la marca ̪): la punta toca la cara de atrás de los dientes de arriba, sin aspirar', ['tango', 'todo']]],
+  d: [['d̪', 'dental, después de pausa, n o l', ['dale', 'donde', 'el dedo']], ['ð̞', 'aproximante entre vocales y en las demás posiciones (ver ð)', ['todo', 'nada']]],
+  k: [['k', 'sin aspiración', ['casa', 'que']]],
+  g: [['g', 'oclusiva, después de pausa o de n', ['gato', 'tengo']], ['ɣ̞', 'aproximante en las demás posiciones (ver ɣ)', ['lago', 'agua']]],
+  'β': [['β̞', 'aproximante: los labios se acercan sin rozar (la marca ̞ = más abierta que una fricativa)', ['lobo', 'la vaca', 'cabeza']]],
+  'ð': [['ð̞', 'aproximante muy suave entre vocales', ['todo', 'cada']],
+    ['∅', 'en -ado y al final de palabra muchas veces desaparece en el habla rápida', [['cansado', '[kãn̪.ˈsa.o]'], ['ciudad', '[sju.ˈð̞a]']]]],
+  'ɣ': [['ɣ̞', 'aproximante: la parte de atrás de la lengua se acerca al velo sin rozar', ['lago', 'agua', 'la gata']]],
+  f: [['f', 'labiodental sorda, como en inglés', ['café', 'fiaca']]],
+  s: [['s', 'alveolar sorda, antes de vocal', ['sí', 'casa']],
+    ['s̬', 'sonorizada (la marca ̬) antes de consonante sonora, en el habla cuidada', [['desde', '[ˈd̪es̬.ð̞e]'], ['mismo', '[ˈmis̬.mo]']]],
+    ['h · ɦ', 'en el habla porteña de todos los días se aspira (ver h)', ['mismo', 'desde']]],
+  h: [['h', 'aspiración sorda, antes de consonante sorda', ['está', 'buscar']],
+    ['ɦ', 'aspiración sonora, antes de consonante sonora', ['mismo', 'desde', 'los dedos']],
+    ['∅', 'al final de frase a veces se pierde', [['vamos', '[ˈba.mo]']]]],
+  x: [['x', 'velar sorda, más suave que en España', ['jugo', 'gente']], ['h', 'a veces solo un soplo, sobre todo entre vocales', [['mujer', '[mu.ˈheɾ̥]']]]],
+  'ʃ': [['ʃ', 'sorda: lo más común hoy en Buenos Aires', ['calle', 'yo']], ['ʒ', 'sonora (con zumbido): más común en voces mayores', [['calle', '[ˈka.ʒe]'], ['yo', '[ʒo]']]]],
+  'tʃ': [['t͡ʃ', 'africada: la barra de unión indica que el cierre y el roce son un solo sonido', ['che', 'leche']]],
+  m: [['m', 'bilabial; la n antes de p, b o m también suena así', ['mate', 'un beso']]],
+  n: [['n', 'alveolar, antes de vocal o al final', ['nada', 'pan']], ['n̪', 'dental, antes de t o d', ['canto', 'donde']],
+    ['m · ŋ · ɱ', 'se adapta a la consonante que sigue (ver esas tarjetas)', ['un beso', 'tengo', 'enfermo']]],
+  'ɲ': [['ɲ', 'palatal', ['año', 'mañana']]],
+  'ŋ': [['ŋ', 'velar, antes de k, g o j', ['tengo', 'banco']]],
+  'ɱ': [['ɱ', 'labiodental, antes de f', ['enfermo', 'lunfardo']]],
+  l: [['l', 'alveolar y siempre clara', ['luca', 'mal']], ['l̪', 'dental, antes de t o d', ['alto', 'caldo']]],
+  'ɾ': [['ɾ', 'toque simple sonoro', ['pero', 'caro']], ['ɾ̥', 'ensordecida (la marca ̥) al final de frase: casi un soplo', ['hablar', 'comer']]],
+  r: [['r', 'vibrante múltiple sonora', ['perro', 'rápido']]],
+};
+
+// Diphthongs: two vowels in one syllable. The i or u is a glide: [j w] before the main vowel
+// (rising, "creciente"), [i̯ u̯] after it (falling, "decreciente"). from/to: mouth shapes for the drawing.
+export const DIPHTHONGS = [
+  { s: 'ja', sp: 'ia', kind: 'creciente', from: 'j', to: 'a', ex: ['gracias', 'familia', 'piano'], how: 'Arrancá con la lengua alta y adelante, como para una i corta, y bajala enseguida a la a abierta. La i no es sílaba aparte: gra-cias, no gra-ci-as.' },
+  { s: 'je', sp: 'ie', kind: 'creciente', from: 'j', to: 'e', ex: ['bien', 'tiempo', 'viejo'], how: 'De una i rápida a la e media: la lengua baja un poco y queda adelante. Ojo: hie- al principio suena [ʃe] en Buenos Aires: hielo [ˈʃe.lo].' },
+  { s: 'jo', sp: 'io', kind: 'creciente', from: 'j', to: 'o', ex: ['radio', 'despacio', 'novio'], how: 'De una i rápida a la o: la lengua va de adelante hacia atrás y los labios se redondean al llegar a la o.' },
+  { s: 'ju', sp: 'iu', kind: 'creciente', from: 'j', to: 'u', ex: ['ciudad', 'viuda', 'triunfo'], how: 'La lengua alta pasa de adelante (i) a atrás (u) sin bajar, y los labios se redondean. Suele cargar la fuerza en la u.' },
+  { s: 'wa', sp: 'ua', kind: 'creciente', from: 'w', to: 'a', ex: ['cuatro', 'agua', 'guapo'], how: 'Labios redondos y lengua atrás como para una u corta, y abrí todo hacia la a. No hagas dos sílabas: cua-tro.' },
+  { s: 'we', sp: 'ue', kind: 'creciente', from: 'w', to: 'e', ex: ['bueno', 'puerta', 'luego'], how: 'De una u rápida a la e: los labios se estiran y la lengua viene adelante. hue- suele sonar con un roce suave atrás: huevo [ˈɣ̞we.β̞o].' },
+  { s: 'wi', sp: 'ui', kind: 'creciente', from: 'w', to: 'i', ex: ['cuidado', 'ruido', 'Luis'], how: 'Labios redondos que se estiran, lengua de atrás hacia adelante, siempre alta. La fuerza va en la i. En muy suena al revés, decreciente: [mui̯].' },
+  { s: 'wo', sp: 'uo', kind: 'creciente', from: 'w', to: 'o', ex: ['cuota', 'antiguo', 'arduo'], how: 'Los labios quedan redondos todo el tiempo; la lengua baja un poco de la u a la o. Es el menos frecuente.' },
+  { s: 'ai̯', sp: 'ai / ay', kind: 'decreciente', from: 'a', to: 'j', ex: ['aire', 'bailar', 'hay'], how: 'Empezá en la a bien abierta y cerrá rápido hacia una i corta que no forma sílaba. Como "eye" en inglés, pero más corto y con la a más abierta.' },
+  { s: 'ei̯', sp: 'ei / ey', kind: 'decreciente', from: 'e', to: 'j', ex: ['seis', 'peine', 'ley'], how: 'De la e media sube la lengua a una i corta. Parecido a "say" en inglés, pero con una e más tensa.' },
+  { s: 'oi̯', sp: 'oi / oy', kind: 'decreciente', from: 'o', to: 'j', ex: ['hoy', 'boina', 'voy'], how: 'De la o con labios redondos, la lengua va adelante y arriba y los labios se estiran: como "boy" en inglés.' },
+  { s: 'au̯', sp: 'au', kind: 'decreciente', from: 'a', to: 'w', ex: ['auto', 'jaula', 'causa'], how: 'De la a abierta, la lengua sube atrás y los labios se redondean hacia una u corta: como "how" en inglés.' },
+  { s: 'eu̯', sp: 'eu', kind: 'decreciente', from: 'e', to: 'w', ex: ['deuda', 'Europa', 'neumático'], how: 'De la e con labios estirados a una u corta con labios redondos: la lengua va de adelante hacia atrás. No existe en inglés: practicalo despacio.' },
+  { s: 'ou̯', sp: 'ou', kind: 'decreciente', from: 'o', to: 'w', ex: ['estadounidense', 'bou'], how: 'De la o a una u corta: los labios se cierran un poco más y la lengua sube atrás. Es raro en español.' },
+];

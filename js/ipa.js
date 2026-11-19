@@ -233,3 +233,22 @@ export function transcribe(text, opts = {}) {
   while (parts.length && (parts[parts.length - 1] === '‖' || parts[parts.length - 1] === '|')) parts.pop();
   return '[' + parts.join(' ') + ']';
 }
+
+// Narrow ("detailed") Rioplatense transcription, from the broad one: approximants with the lowering
+// tack (β̞ ð̞ ɣ̞), dental t d and n l before them (t̪ d̪ n̪ l̪), voiced aspiration before voiced consonants (ɦ),
+// nasalized vowels before a nasal in the same syllable (ã), non-syllabic glides at the end of a diphthong
+// (i̯ u̯), devoiced final r at the end of a phrase (ɾ̥) and the tie bar in the affricate (t͡ʃ).
+export function narrow(ipa) {
+  const TS = '\u0001';
+  return ipa
+    .replace(/tʃ/g, TS)
+    .replace(/([βðɣ])/g, '$1̞')
+    .replace(/([nl])(?=[.ˈ]*[td])/g, '$1̪')
+    .replace(/([td])/g, '$1̪')
+    .replace(/h(?=[.ˈ ]*[bβdðgɣmnɲŋlɾrjw])/g, 'ɦ')
+    .replace(/([aeiou])(?=[nmŋɲɱ](?![aeiou̪]*[aeiou]))/g, '$1̃')
+    .replace(/([aeiou]̃?)j(?![aeiou])/g, '$1i̯')
+    .replace(/([aeiou]̃?)w(?![aeiou])/g, '$1u̯')
+    .replace(/ɾ(?=\]$)/, 'ɾ̥')
+    .replace(new RegExp(TS, 'g'), 't͡ʃ');
+}
