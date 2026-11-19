@@ -45,7 +45,7 @@ export async function render(main) {
   main.append(pageHead('HERRAMIENTAS DE EXPRESIÓN, ESCUCHA Y MEDIOS', 'Practicar',
     ai ? h('span', { class: 'tag' }, 'Clave de Gemini activa') : h('a', { href: '#/perfil', class: 'tag warn' }, 'Sin clave de Gemini · Agregar')));
 
-  const section = (title, ...cards) => [h('span', { class: 'kicker', style: 'color:var(--muted);margin-top:6px' }, title), h('div', { class: 'tools' }, ...cards)];
+  const section = (title, ...cards) => [h('h2', { class: 'kicker tool-cat' }, title), h('div', { class: 'tools' }, ...cards)];
 
   main.append(...section('HABLAR Y PRONUNCIAR',
     tool({ href: '#/sombra', ic: 'mic', color: '--accent', title: 'Sombra', text: 'Imitá frases de hablantes argentinos y compará tu voz con la nativa, onda por onda y en melodía.', meta: clips ? `${plural(clips, 'clip', 'clips')} · ${plural(takes, 'toma', 'tomas')}` : 'Importá los clips en Ajustes' }),
@@ -64,8 +64,8 @@ export async function render(main) {
     tool({ href: '#/leer', ic: 'read', color: '--accent', title: 'Lectura', text: 'Pegá cualquier texto y tocá las palabras para ver sílabas, sonidos y guardarlas.', meta: 'Texto o IPA' }),
     tool({ href: '#/podcast', ic: 'podcast', color: '--c-cyan', title: shows.size === 1 ? `Podcast ${[...shows][0]}` : 'Podcast', text: 'Escuchá episodios con la transcripción sincronizada palabra por palabra y guardá frases en Penumbra.', meta: episodes ? plural(episodes, 'episodio', 'episodios') : 'Importá los episodios' }),
     tool({ href: '#/canciones', ic: 'music', color: '--c-amber', title: 'Canciones', text: 'Canciones con la letra resaltada línea por línea, en tiempo real.', meta: songs ? plural(songs, 'canción', 'canciones') : 'Importá las canciones' }),
-    tool({ href: '#/libros', ic: 'book', color: '--c-indigo', title: 'Libros y cuentos', text: 'Importá tus PDF, leé cuento por cuento, consultá definiciones y guardá frases completas.', meta: books ? plural(books, 'libro', 'libros') : 'Importá un PDF' }),
-    tool({ href: '#/recetas', ic: 'food', color: '--c-rose', title: 'Recetas argentinas', text: 'Recetas tradicionales con los pasos en voseo, verbos para tocar y conversor de unidades.', meta: `${RECETAS.length} recetas · voseo` }),
+    tool({ href: '#/libros', ic: 'book', color: '--c-indigo', title: 'Libros y Cuentos', text: 'Importá tus PDF, leé cuento por cuento, consultá definiciones y guardá frases completas.', meta: books ? plural(books, 'libro', 'libros') : 'Importá un PDF' }),
+    tool({ href: '#/recetas', ic: 'food', color: '--c-rose', title: 'Recetas Argentinas', text: 'Recetas tradicionales con los pasos en voseo, verbos para tocar y conversor de unidades.', meta: `${RECETAS.length} recetas · voseo` }),
     tool({ href: '#/lunfardo', ic: 'slang', color: '--c-green', title: 'Lunfardo', text: 'Voces y expresiones porteñas con significado, ejemplo y un toque para guardarlas.', meta: plural(LUNFARDO.length, 'voz', 'voces') }),
     tool({ href: '#/cultura', ic: 'mate', color: '--c-amber', title: 'Tarjeta del día', text: 'Una tarjeta de cultura por día: leela, escuchala y contestá la pregunta.', meta: `${CARDS.length} tarjetas` })));
   return () => {};

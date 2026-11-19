@@ -226,8 +226,8 @@ a.card:hover, button.card:hover { border-color: color-mix(in srgb, var(--accent)
 .kv span { color: var(--muted); }
 
 /* Practicar: one card per tool */
-.tools { display: grid; grid-template-columns: 1fr; gap: 12px; }
-@media (min-width: 640px) { .tools { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 640px) { .tools { gap: 12px; } }
 @media (min-width: 1024px) { .tools { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tool { --c: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: calc(var(--radius) + 4px); padding: 18px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; text-decoration: none; color: inherit; }
 .tool:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--line)); }
@@ -289,3 +289,27 @@ a.card:hover, button.card:hover { border-color: color-mix(in srgb, var(--accent)
 .switch .knob { width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
 .switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
 .switch[aria-checked="true"] .knob { transform: translateX(16px); background: var(--accent-ink); }
+
+/* Practicar: category labels in the accent colour on phones and tablets; compact cards two by two */
+.tool-cat { margin: 6px 0 0; font-family: var(--body); font-size: 11px; color: var(--muted); }
+@media (max-width: 1023px) { .tool-cat { color: var(--accent); font-size: 12px; } }
+@media (max-width: 639px) {
+  .tool { padding: 14px 12px 12px; gap: 10px; border-radius: var(--radius); }
+  .tool .ico { width: 36px; height: 36px; border-radius: 12px; margin-bottom: 8px; }
+  .tool .ico svg { width: 18px; height: 18px; }
+  .tool b { font-size: 15px; line-height: 1.2; }
+  .tool p { font-size: 12px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tool .foot { font-size: 11px; padding-top: 10px; gap: 6px; }
+  .tool .foot span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+/* Diario: monthly calendar of recordings */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-wd { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); padding-bottom: 2px; }
+.cal-day { position: relative; aspect-ratio: 1; max-height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 14px; color: var(--muted); opacity: .55; font-variant-numeric: tabular-nums; }
+.cal-day.today { outline: 1.5px solid var(--line); outline-offset: -1.5px; opacity: .9; }
+button.cal-day { opacity: 1; border: none; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 700; cursor: pointer; }
+button.cal-day:hover { filter: brightness(1.1); }
+button.cal-day:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+button.cal-day.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cal-n { position: absolute; top: 3px; right: 5px; font-size: 9px; font-weight: 700; opacity: .85; }
+@media (min-width: 1024px) { .cal { max-width: 560px; } }
