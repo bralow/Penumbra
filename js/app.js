@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.19-c (Diario: calendario; Practicar en dos columnas)';
+export const APP_VERSION = '2026.11.19-d (tarjetas nuevas y color propio)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 

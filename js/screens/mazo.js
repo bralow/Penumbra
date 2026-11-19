@@ -47,8 +47,7 @@ export async function render(main) {
         h('label', { for: `c${it.id}`, style: 'display:flex;flex-direction:column;gap:3px;flex:1;min-width:0' },
           h('span', { style: 'font-family:var(--display);font-size:17px;font-weight:600;line-height:1.25', lang: 'es-AR' }, it.front),
           it.ipa ? h('span', { class: 'ipa', style: 'font-size:13px' }, it.ipa) : null,
-          it.back ? h('span', { class: 'muted small' }, it.back) : null,
-          h('span', { class: 'chip', style: 'align-self:flex-start;margin-top:2px' }, it.tag)),
+          it.back ? h('span', { class: 'muted small' }, it.back) : null), // tags filter the list above; they aren't shown on the card
         h('div', { style: 'display:flex;flex-direction:column' }, play, del));
     }));
     updateCount();

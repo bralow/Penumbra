@@ -10,6 +10,7 @@ import { actionFor } from '../hotkeys.js';
 import { overlay } from '../imgedit.js';
 import { practiceSet, SETS } from '../practica.js';
 import { updateCard } from '../penumbra.js';
+import { cardShell, backContent, listenButton } from '../cardface.js';
 
 const clean = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -176,44 +177,28 @@ export async function render(main) {
     const card = nextCard(q, done);
     if (!card) return finish();
     current = card;
-    const face = h('section', { class: 'card', style: 'flex:1;gap:14px;padding:20px;min-height:52vh' });
-    const actions = h('div', { style: 'display:flex;flex-direction:column;gap:10px' });
+    // The card: front (your accent colour, the Obelisco) until you answer, then back (magenta, Caminito).
+    const face = cardShell('front', { reconocer: 'Reconocer', producir: 'Producir', escuchar: 'Escuchar', completar: 'Completar', pronunciar: 'Pronunciar' }[card.type] || 'Tarjeta', deckName.get(card.deck) || 'General');
+    const actions = h('div', { style: 'display:flex;flex-direction:column;gap:10px;width:100%;max-width:520px;margin:0 auto' });
     stage.replaceChildren(face, actions);
-    const top = h('div', { class: 'between' },
-      h('span', { class: 'chip' }, deckName.get(card.deck) || 'General'),
-      h('span', { class: 'muted small' }, { reconocer: 'Reconocer', producir: 'Producir', escuchar: 'Escuchar', completar: 'Completar', pronunciar: 'Pronunciar' }[card.type] || ''));
     const listen = (label = '▶ Escuchar', rate = 1) => { const b = h('button', { type: 'button', class: 'pill' }, label); b.onclick = () => playCard(card, rate); return b; };
     let revealed = false, suggest = null;
-    const picture = () => h('img', { src: URL.createObjectURL(card.image), alt: '', style: 'max-width:100%;max-height:30vh;border-radius:14px;object-fit:contain;align-self:center' });
-
-    // The answer side, shared by every type.
-    const backPart = () => {
-      const parts = [h('div', { style: 'height:1px;background:var(--line);margin:4px 0' })];
-      if (card.image instanceof Blob && card.type !== 'producir' && card.type !== 'reconocer') parts.push(picture());
-      // The word itself only when it was the answer (on the other types it is already on screen).
-      if (card.type === 'producir' || card.type === 'escuchar') parts.push(h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center' },
-        h('span', { style: 'font-family:var(--display);font-size:26px;font-weight:700' }, card.front),
-        h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, card.ipa || '')));
-      if (card.meaning) parts.push(h('p', { style: 'text-align:center;font-size:20px;font-weight:600' }, card.meaning));
-      if (card.hint) parts.push(h('p', { class: 'muted small', style: 'text-align:center' }, card.hint));
-      const ctx = card.context || (card.back && card.back !== card.meaning && !/ · /.test(card.back) ? card.back : '');
-      if (ctx) {
-        const p = h('p', { style: 'font-size:16px;line-height:1.5;background:var(--chip);border-radius:12px;padding:12px' });
-        const re = new RegExp(`(${esc(card.front)})`, 'i');
-        ctx.split(re).forEach((part, i) => p.append(i % 2 ? h('b', { style: 'color:var(--accent)' }, part) : part));
-        parts.push(p);
-      }
-      const srcLabel = card.source && card.source.label ? card.source.label : (/ · /.test(card.back || '') ? card.back : '');
-      parts.push(h('div', { class: 'row wrap', style: 'gap:8px;justify-content:center' },
-        listen(hasRealAudio(card) ? '▶ Original' : '▶ Escuchar'),
-        srcLabel ? h('span', { class: 'muted small' }, srcLabel) : ''));
-      return parts;
-    };
+    const picture = () => h('img', { class: 'fc-img', src: URL.createObjectURL(card.image), alt: '' });
 
     function reveal(s) {
       if (revealed) return;
       revealed = true; suggest = s; stopClock();
-      face.append(...backPart());
+      // The back: everything on the card (picture, phrase, IPA, meaning, note, example, source) and
+      // the dictionaries. Your typed answer's feedback stays. Pronunciar keeps your recording on screen.
+      const feedback = [...face.querySelectorAll('.fc-feedback')];
+      if (card.type === 'pronunciar') {
+        face.flip('back', 'Respuesta');
+        face.append(...backContent(card, { showPhrase: false, showIpa: false }));
+      } else {
+        face.replaceChildren(face.firstChild);
+        face.flip('back', 'Respuesta');
+        face.append(...backContent(card, { onListen: () => playCard(card), listenLabel: hasRealAudio(card) ? 'Escuchar original' : 'Escuchar', extra: feedback }));
+      }
       const pv = practice ? null : preview(card);
       const fail = h('button', { type: 'button', class: 'btn ghost', style: `flex:1;min-height:64px;flex-direction:column;gap:2px;${s === false ? 'outline:3px solid var(--accent);' : ''}` },
         h('b', {}, 'Fallé'), h('span', { class: 'small muted' }, practice ? 'otra vez al final' : `${human(pv.fail)} · 1`));
@@ -249,13 +234,13 @@ export async function render(main) {
         style: 'min-height:54px;padding:0 16px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:20px;width:100%' });
       const hint = h('button', { type: 'button', class: 'pill' }, 'Pista');
       hint.onclick = () => { hint.textContent = card.front.split('').map((ch, i) => (i === 0 || ch === ' ' ? ch : '_')).join(' '); };
-      face.append(top, h('div', { style: 'flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;text-align:center' },
+      face.append(h('div', { style: 'flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;text-align:center' },
         card.image instanceof Blob ? picture() : '',
         h('span', { class: 'muted small' }, card.tag === '#Trivia' ? '¿Qué o quién es?' : '¿Cómo se dice?'), h('span', { style: 'font-family:var(--display);font-size:30px;font-weight:700' }, prompt)), input, h('div', { class: 'row' }, hint));
       const check = () => {
         const r = checkTyped(input.value, card.front);
         input.disabled = true;
-        face.append(h('p', { style: `text-align:center;font-weight:700;color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? (r.accentsOnly ? '¡Bien! Ojo con las tildes.' : '¡Bien!') : `Escribiste: ${input.value || '(nada)'}`));
+        face.append(h('p', { class: 'fc-feedback', style: `color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? (r.accentsOnly ? '¡Bien! Ojo con las tildes.' : '¡Bien!') : `Escribiste: ${input.value || '(nada)'}`));
         reveal(r.ok);
       };
       input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); check(); } };
@@ -267,12 +252,12 @@ export async function render(main) {
         style: 'border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:17px;padding:12px;width:100%;resize:none' });
       const play = h('button', { type: 'button', class: 'round native', 'aria-label': 'Escuchar', style: 'width:84px;height:84px;font-size:30px' }, '▶');
       play.onclick = () => playCard(card);
-      face.append(top, h('div', { style: 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px' },
+      face.append(h('div', { style: 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px' },
         play, h('div', { class: 'row', style: 'gap:8px' }, listen('0,75×', 0.75), listen('Repetir'))), input);
       const check = () => {
         const r = checkTyped(input.value, card.front);
         input.disabled = true;
-        face.append(h('p', { style: `text-align:center;font-weight:700;color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? '¡Bien!' : r.close ? 'Casi: compará con la frase.' : 'Compará con la frase.'));
+        face.append(h('p', { class: 'fc-feedback', style: `color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? '¡Bien!' : `${r.close ? 'Casi' : 'Compará con la frase'} · escribiste: ${input.value || '(nada)'}`));
         reveal(r.ok ? true : r.close ? null : false);
       };
       showBtn('Comprobar', check);
@@ -283,11 +268,12 @@ export async function render(main) {
       const re = new RegExp(esc(card.front), 'i');
       const gap = h('span', { style: 'display:inline-block;min-width:80px;border-bottom:3px solid var(--accent);color:var(--accent);text-align:center' }, '?');
       const [a, b] = ctx.split(re);
-      face.append(top, h('p', { style: 'font-family:var(--display);font-size:23px;line-height:1.5;flex:1;display:flex;align-items:center' },
+      face.append(h('p', { style: 'font-family:var(--display);font-size:23px;line-height:1.5;flex:1;display:flex;align-items:center' },
         h('span', {}, a || '', gap, b !== undefined ? b : '')));
       const choose = (val) => {
         const ok = clean(val) === clean(card.front);
         gap.textContent = card.front; gap.style.color = ok ? 'var(--accent)' : 'var(--gold-text)';
+        face.append(h('p', { class: 'fc-feedback', style: `color:${ok ? 'var(--accent)' : 'var(--gold-text)'}` }, ok ? '¡Bien!' : `Elegiste: ${val || '(nada)'}`));
         reveal(ok);
       };
       db.all('cards').then((all) => {
@@ -323,7 +309,7 @@ export async function render(main) {
         try { await rec.start(); recBtn.textContent = '■'; recBtn.classList.add('live'); } catch { toast('Necesito permiso para el micrófono'); }
       };
       playMine.onclick = () => { if (myBlob) { stopAudio(); player = new Audio(URL.createObjectURL(myBlob)); player.play(); } };
-      face.append(top, h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center' },
+      face.append(h('div', { style: 'display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center' },
         h('span', { style: 'font-family:var(--display);font-size:34px;font-weight:700' }, card.front),
         h('span', { class: 'ipa', style: 'font-size:18px;color:var(--gold-text)' }, card.ipa || '')),
       hasRealAudio(card) ? h('div', { style: 'display:flex;flex-direction:column;gap:4px' }, h('span', { class: 'kicker' }, 'NATIVA'), native) : '',
@@ -334,11 +320,11 @@ export async function render(main) {
       startTimer(null);
     } else {
       // Reconocer
-      face.append(top, h('div', { style: 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center' },
+      face.append(h('div', { class: 'fc-mid' },
         card.image instanceof Blob ? picture() : '',
-        h('span', { style: `font-family:var(--display);font-size:${card.front.length > 40 ? 24 : card.front.length > 18 ? 32 : 46}px;font-weight:700;line-height:1.25` }, card.front),
-        h('span', { class: 'ipa', style: 'font-size:18px;color:var(--gold-text)' }, card.ipa || ''),
-        listen()), h('span', { class: 'muted small', style: 'text-align:center' }, '¿Qué significa?'));
+        h('span', { class: 'fc-word', style: `font-size:${card.front.length > 40 ? 24 : card.front.length > 18 ? 32 : 46}px` }, card.front),
+        card.ipa ? h('span', { class: 'ipa', style: 'font-size:18px' }, card.ipa) : '',
+        listenButton(() => playCard(card))), h('span', { class: 'muted small', style: 'text-align:center' }, '¿Qué significa?'));
       showBtn();
       startTimer(() => reveal(null));
     }

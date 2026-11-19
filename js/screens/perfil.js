@@ -1,6 +1,6 @@
 import { h, toast, LEVELS, pageHead } from '../ui.js';
 import { getVoz, setVoz, listVoices, spanish, pickVoice, phoneSay } from '../voz.js';
-import { getSettings, setSetting } from '../settings.js';
+import { getSettings, setSetting, validHex } from '../settings.js';
 import { db, persist } from '../db.js';
 import { importPack } from '../podcast.js';
 import { APP_VERSION } from '../app.js';
@@ -32,13 +32,37 @@ export async function render(main) {
     pillGroup('Velocidad inicial', ['0.5', '0.75', '1'], s.speed, (v) => setSetting('speed', v), { cls: 'grid3', fmt: (x) => (x === '1' ? '1.0x' : x + 'x') })));
 
   // Appearance: accent, density, your name, which blocks Hoy shows. (Light/dark is the button in the top bar.)
+  // Accent: quick presets or any colour of your own (picker or #hex). The whole app follows it.
   const ACCENTS = [['cian', 'Cian', '#2AB4D6'], ['azul', 'Azul', '#8FA8FF'], ['menta', 'Menta', '#5EEAD4'], ['ambar', 'Ámbar', '#FFB86B'], ['lila', 'Lila', '#E9A8FF']];
+  const cur = () => getSettings().accent || 'cian';
   const swatches = ACCENTS.map(([k, l, c]) => {
-    const b = h('button', { type: 'button', class: 'pill', 'aria-pressed': String((s.accent || 'cian') === k), style: 'display:flex;align-items:center;gap:6px;justify-content:center;min-width:0;border-radius:12px' },
+    const b = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(cur() === k), style: 'display:flex;align-items:center;gap:6px;justify-content:center;min-width:0;border-radius:12px' },
       h('span', { style: `width:14px;height:14px;border-radius:50%;background:${c};flex:none` }), l);
-    b.onclick = () => { setSetting('accent', k); swatches.forEach((x, i) => x.setAttribute('aria-pressed', String(ACCENTS[i][0] === k))); };
+    b.onclick = () => { setSetting('accent', k); paintAccent(); };
     return b;
   });
+  const startHex = validHex(s.accentHex) ? s.accentHex.toUpperCase() : '#2AB4D6';
+  const picker = h('input', { type: 'color', value: startHex.toLowerCase(), 'aria-label': 'Elegir color', style: 'display:block;width:46px;height:46px;padding:0;border:1px solid var(--line);border-radius:12px;background:none;cursor:pointer;flex:none' });
+  const hexIn = h('input', { type: 'text', value: startHex, maxlength: '7', 'aria-label': 'Color en hexadecimal', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'characters',
+    style: 'min-height:46px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;width:110px;font-family:ui-monospace,monospace' });
+  const customBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(cur() === 'custom'), style: 'min-height:46px;border-radius:12px' }, 'Usar mi color');
+  const preview = h('span', { class: 'muted small', style: 'line-height:1.4' });
+  const useCustom = (hex) => { if (!validHex(hex)) { preview.textContent = 'Escribí un color como #2AB4D6.'; return; } setSetting('accentHex', hex.toUpperCase()); setSetting('accent', 'custom'); paintAccent(); };
+  picker.oninput = () => { hexIn.value = picker.value.toUpperCase(); useCustom(picker.value); };
+  hexIn.onchange = () => { let v = hexIn.value.trim(); if (!v.startsWith('#')) v = `#${v}`; if (validHex(v)) { picker.value = v.toLowerCase(); hexIn.value = v.toUpperCase(); } useCustom(v); };
+  hexIn.onkeydown = (e) => { if (e.key === 'Enter') hexIn.onchange(); };
+  customBtn.onclick = () => useCustom(hexIn.value.startsWith('#') ? hexIn.value : `#${hexIn.value}`);
+  function paintAccent() {
+    const a = cur();
+    swatches.forEach((x, i) => x.setAttribute('aria-pressed', String(ACCENTS[i][0] === a)));
+    customBtn.setAttribute('aria-pressed', String(a === 'custom'));
+    const st = getSettings();
+    preview.textContent = a === 'custom' ? `Tu color: ${st.accentHex}. En modo claro se oscurece un poco si hace falta para que el texto se lea bien.` : 'Elegí uno de la lista o tu propio color.';
+  }
+  paintAccent();
+  const accentBox = h('div', { style: 'display:flex;flex-direction:column;gap:8px' },
+    h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px' }, swatches),
+    h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap;align-items:center' }, picker, hexIn, customBtn), preview);
   const name = h('input', { type: 'text', value: s.name || '', placeholder: 'Para el saludo de Hoy', 'aria-label': 'Tu nombre', autocomplete: 'given-name',
     style: 'min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;width:100%' });
   name.onchange = () => setSetting('name', name.value.trim());
@@ -50,7 +74,7 @@ export async function render(main) {
   });
   grid.append(h('section', { class: 'card' },
     h('span', { class: 'kicker' }, 'APARIENCIA'),
-    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Color de acento'), h('div', { style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px' }, swatches),
+    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Color del tema'), accentBox,
     pillGroup('Densidad', ['comoda', 'compacta'], s.density || 'comoda', (v) => setSetting('density', v), { cls: 'grid3', fmt: (x) => ({ comoda: 'Cómoda', compacta: 'Compacta' })[x] }),
     h('h3', { style: 'font-size:15px;font-weight:700' }, 'Tu nombre'), name,
     h('details', {}, h('summary', { style: 'font-weight:700;cursor:pointer;font-size:15px' }, 'Qué muestra Hoy'), h('div', { style: 'display:flex;flex-direction:column;margin-top:6px' }, blockBoxes))));

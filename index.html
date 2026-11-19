@@ -8,7 +8,7 @@
 // Apply the saved look before anything paints (no white flash in dark mode).
 try { var s = JSON.parse(localStorage.getItem('cadencia.settings') || '{}'), t = s.theme || 'dark', r = document.documentElement;
   r.dataset.theme = t === 'light' || (t === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches) ? 'light' : 'dark';
-  r.dataset.accent = s.accent || 'cian'; r.dataset.density = s.density || 'comoda';
+  r.dataset.accent = s.accent || 'cian'; if (s.accent === 'custom' && /^#[0-9a-f]{6}$/i.test(s.accentHex || '')) r.style.setProperty('--accent', s.accentHex); r.dataset.density = s.density || 'comoda';
 } catch (e) { document.documentElement.dataset.theme = 'dark'; }
 </script>
 <title>Penumbra</title>
