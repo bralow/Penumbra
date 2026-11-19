@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.17-a (diseño ancho para la PC)';
+export const APP_VERSION = '2026.11.19-a (podcast: inspector de palabras flotante)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
