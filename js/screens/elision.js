@@ -2,7 +2,10 @@ import { h, iconEl, toast, shuffle } from '../ui.js';
 import { practiceTabs } from './sombra.js';
 import { transcribe } from '../ipa.js';
 import { db } from '../db.js';
-import { Player, Recorder } from '../audio.js';
+import { Player, Recorder, decode, peaks } from '../audio.js';
+import { onset, speechEnd } from '../waveform.js';
+import { alignTakes, warpTime } from '../dtw.js';
+import { drawTakes, hiss, isFullS } from '../acoustic.js';
 import { log } from '../progress.js';
 
 // An s or z at the end of a syllable before a consonant (same word or next word) is aspirated: [h].
@@ -45,16 +48,26 @@ export async function render(main) {
     h('div', { class: 'control' }, recBtn, recLabel),
     h('div', { class: 'control' }, mineBtn, h('span', {}, 'Mi voz'))),
   h('div', { class: 'row', style: 'justify-content:center' }, loopBtn));
+  // After you record: both takes, the aspiration spots on each, and whether yours still sounds like a full [s].
+  const compareCanvas = h('canvas', { style: 'width:100%;height:150px;display:block', role: 'img', 'aria-label': 'Tu toma comparada con la nativa' });
+  const compareInfo = h('div', { class: 'small', 'aria-live': 'polite', style: 'display:flex;flex-direction:column;gap:6px;line-height:1.45' });
+  const compare = h('section', { class: 'card', hidden: true, style: 'gap:8px' },
+    h('div', { class: 'between' }, h('span', { class: 'kicker' }, 'TU TOMA VS. LA NATIVA'), h('span', { class: 'muted', style: 'font-size:11px' }, 'posiciones aproximadas')),
+    h('div', { class: 'legend' }, h('span', {}, h('i', { style: 'background:var(--native)' }), 'Nativa'), h('span', {}, h('i', { style: 'background:var(--user)' }), 'Vos')),
+    compareCanvas, compareInfo);
+  main.append(compare);
 
   const native = new Player(), mine = new Player(), recorder = new Recorder();
   let autoStop = 0;
   const setRate = () => { native.rate = parseFloat(speed); };
   speedBtns.forEach((b, i) => { b.onclick = () => { speed = SPEEDS[i]; speedBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); setRate(); }; });
 
+  let current = null, nativeBlob = null;
   async function load() {
-    native.pause(); mine.load(null); mineBtn.disabled = true;
+    native.pause(); mine.load(null); mineBtn.disabled = true; compare.hidden = true;
     if (!queue.length) { textEl.textContent = 'No encontré frases con s aspirada en tus clips.'; return; }
     const c = byId.get(queue[qi % queue.length]);
+    current = c;
     counter.textContent = `${(qi % queue.length) + 1} / ${queue.length}`;
     const n = (c.text.match(SPOT) || []).length;
     spots.textContent = `${n} s aspirada${n === 1 ? '' : 's'}`;
@@ -67,7 +80,8 @@ export async function render(main) {
     parts.push(c.text.slice(last));
     textEl.replaceChildren(...parts);
     ipaEl.textContent = transcribe(c.text);
-    native.load(await db.audioFor(c.id)); setRate();
+    nativeBlob = await db.audioFor(c.id);
+    native.load(nativeBlob); setRate();
   }
 
   playBtn.onclick = () => { if (native.playing) { native.pause(); playBtn.replaceChildren(iconEl('play')); } else { mine.pause(); native.play(); playBtn.replaceChildren(iconEl('pause')); } };
@@ -78,7 +92,37 @@ export async function render(main) {
     clearTimeout(autoStop);
     const blob = await recorder.stop();
     recBtn.classList.remove('live'); recBtn.replaceChildren(iconEl('mic')); recLabel.textContent = 'Grabar';
-    if (blob && blob.size) { mine.load(blob); mineBtn.disabled = false; log('elision'); }
+    if (blob && blob.size) { mine.load(blob); mineBtn.disabled = false; showCompare(blob); }
+  }
+
+  async function showCompare(blob) {
+    if (!nativeBlob || !current) { log('elision'); return; }
+    try {
+      const [nb, ub] = await Promise.all([decode(nativeBlob), decode(blob)]);
+      const tr = (b) => ({ peaks: peaks(b), duration: b.duration });
+      const n0 = onset(tr(nb)), n1 = speechEnd(tr(nb)), u0 = onset(tr(ub)), u1 = speechEnd(tr(ub));
+      const warp = alignTakes(nb, ub, n0, n1, u0, u1);
+      // Where each aspiration spot falls: by its place among the letters, then mapped onto your take.
+      const text = current.text, letters = text.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length || 1;
+      const spots = [...text.matchAll(/[sz](?=\s*[bcdfgjklmnñpqrtvxyBCDFGJKLMNÑPQRTVXY])/g)].map((m) => {
+        const before = text.slice(0, m.index + 1).replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '').length;
+        const tn = n0 + (n1 - n0) * (before / letters);
+        const tu = (warp && warpTime(warp, tn)) || u0 + (u1 - u0) * (before / letters);
+        const word = (text.slice(0, m.index + 1).match(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+$/) || [''])[0];
+        return { tn, tu, word, full: isFullS(hiss(ub, tu)), nativeFull: isFullS(hiss(nb, tn)) };
+      });
+      compare.hidden = false;
+      drawTakes(compareCanvas, [
+        { buf: nb, t0: n0, t1: n1, color: getComputedStyle(document.documentElement).getPropertyValue('--native'), label: 'NATIVA', marks: spots.map((x) => ({ t: x.tn, color: '#22c55e' })) },
+        { buf: ub, t0: u0, t1: u1, color: getComputedStyle(document.documentElement).getPropertyValue('--user'), label: 'VOS', marks: spots.map((x) => ({ t: x.tu, color: x.full ? '#f59e0b' : '#22c55e', label: x.full ? 's' : 'h' })) },
+      ], spots.map((_, i) => [i, i]));
+      const full = spots.filter((x) => x.full);
+      compareInfo.replaceChildren(
+        warp ? h('span', {}, h('b', {}, `Ritmo parecido: ${Math.round(warp.similarity * 100)}%`), ' (alineado sílaba por sílaba)') : h('span', { class: 'muted' }, 'No pude alinear las tomas; las marcas van por proporción.'),
+        h('span', {}, h('b', { style: 'color:#22c55e' }, '■ h'), ' aspirada o suave, como en Buenos Aires · ', h('b', { style: 'color:#f59e0b' }, '■ s'), ' sonó como una s plena'),
+        h('span', {}, full.length ? `Todavía suena la s en: ${full.map((x) => `«${x.word}»`).join(', ')}. Aflojá la lengua y dejá salir solo el aire.` : '¡Bien! Ninguna s sonó plena: aspiraste todas.'));
+      log('elision', { spots: spots.length, aspirated: spots.length - full.length, rhythm: warp ? warp.similarity : null });
+    } catch { compare.hidden = true; log('elision'); }
   }
   recBtn.onclick = async () => {
     if (recorder.recording) { await stopRec(); return; }

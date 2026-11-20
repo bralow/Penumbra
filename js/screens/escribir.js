@@ -9,15 +9,20 @@ import { checkVoseo, applyVoseo } from '../vosfix.js';
 import { getSettings } from '../settings.js';
 import { log } from '../progress.js';
 import { takeHandoff } from './cultura.js';
+import { monthCalendar, dayListModal, fmtHour, fmtLong } from '../calendar.js';
 
 const KEY = 'cadencia.escribir';
 const load = () => { try { return { draft: '', prompt: null, history: [], ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { draft: '', prompt: null, history: [] }; } };
 const save = (patch) => { const v = { ...load(), ...patch }; try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* ignore */ } return v; };
 const words = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
+const calState = { month: null }; // month shown in the calendar; kept while you open a text and come back
+const HISTORY = 300;
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, practiceTabs('escribir')));
   const level = getSettings().level;
+  const at = new URLSearchParams(location.hash.split('?')[1] || '').get('texto');
+  if (at) return entryPage(main, Number(at));
+  main.append(h('div', { class: 'between' }, practiceTabs('escribir')));
   let st = load();
   const handed = takeHandoff();
   if (handed) st = save({ prompt: { text: handed, index: -1, level } });
@@ -62,7 +67,7 @@ export async function render(main) {
     try {
       const r = await review(text, level, st.prompt.index >= 0 ? st.prompt.text : '');
       const entry = { text, prompt: st.prompt.text, result: r, at: Date.now() };
-      st = save({ history: [entry, ...st.history.filter((e) => e.text !== text)].slice(0, 15) });
+      st = save({ history: [entry, ...st.history.filter((e) => e.text !== text)].slice(0, HISTORY) });
       log('escribir', { words: words(text), changes: r.changes.length, kinds: r.changes.map((c) => c.lens) });
       showResult(entry);
       drawHistory();
@@ -90,18 +95,39 @@ export async function render(main) {
     }));
   }
 
-  // --- Past texts
+  // --- Past texts: a monthly calendar; a day opens its texts, each text has its own page.
   function drawHistory() {
     if (!st.history.length) { historyBox.replaceChildren(); return; }
+    const all = [...st.history].sort((a, b) => b.at - a.at);
+    const noun = ['texto', 'textos'];
     historyBox.replaceChildren(h('span', { class: 'kicker', style: 'margin-top:8px' }, 'TUS TEXTOS'),
-      ...st.history.map((e) => {
-        const b = h('button', { type: 'button', class: 'card', style: 'text-align:left;cursor:pointer;font:inherit;color:inherit;gap:2px;padding:10px 12px' },
-          h('span', { class: 'small', style: 'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden' }, e.text),
-          h('span', { class: 'muted small' }, `${new Date(e.at).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })} · ${e.result.changes.length} cambios`));
-        b.onclick = () => { input.value = e.text; paintCount(); showResult(e); result.scrollIntoView({ behavior: 'smooth' }); };
-        return b;
-      }));
+      monthCalendar(all, { state: calState, noun, onDay: (list, btn) => dayListModal(list, btn, { noun, row: (e) => ({
+        href: `#/escribir?texto=${e.at}`, head: `${fmtHour(e.at)} · ${words(e.text)} palabras`, title: e.prompt,
+        preview: e.text, meta: `${e.result.changes.length} cambio${e.result.changes.length === 1 ? '' : 's'}${e.result.level ? ` · nivel ${e.result.level}` : ''}` }) }) }));
   }
   drawHistory();
+  return () => { stopPcm(); };
+}
+
+// --- One text on its own page: what you wrote, the corrections by lens, the porteño version, saving.
+function entryPage(main, at) {
+  const back = h('a', { href: '#/escribir', class: 'pill', style: 'min-height:40px;display:inline-flex;align-items:center;text-decoration:none;flex:none', 'aria-label': 'Volver a Escribir' }, '← Escribir');
+  const e = load().history.find((x) => x.at === at);
+  if (!e) {
+    main.append(h('div', { class: 'row', style: 'gap:12px' }, back, h('h1', { style: 'font-size:24px' }, 'Escribir')),
+      h('section', { class: 'card empty' }, h('p', { class: 'muted' }, 'Este texto ya no está guardado.')));
+    return () => {};
+  }
+  main.append(h('div', { class: 'row', style: 'gap:12px;min-width:0;flex-wrap:nowrap;align-items:center' }, back,
+    h('div', { style: 'min-width:0;display:flex;flex-direction:column;gap:2px' },
+      h('h1', { style: 'font-size:22px;line-height:1.2' }, fmtLong(e.at)),
+      h('span', { class: 'muted small' }, `${fmtHour(e.at)} · ${words(e.text)} palabras · ${e.result.changes.length} cambio${e.result.changes.length === 1 ? '' : 's'}`))),
+  h('section', { class: 'card', style: 'gap:8px' },
+    h('span', { class: 'kicker' }, 'CONSIGNA'), h('p', { style: 'font-family:var(--display);font-size:17px;line-height:1.4' }, e.prompt),
+    h('span', { class: 'kicker', style: 'margin-top:6px' }, 'LO QUE ESCRIBISTE'), h('p', { style: 'font-size:16px;line-height:1.55;white-space:pre-wrap', lang: 'es-AR' }, e.text)),
+  ...reviewView(e.text, e.result, {
+    tag: '#Escribir',
+    reuse: (corrected) => { save({ draft: corrected }); location.hash = '#/escribir'; },
+  }));
   return () => { stopPcm(); };
 }

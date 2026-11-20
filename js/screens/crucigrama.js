@@ -161,8 +161,20 @@ export async function render(main) {
       cw.cells.forEach((row, y) => row.forEach((c, x) => { if (c && fill[y][x] && fill[y][x] !== c.ch) wrong.add(`${x},${y}`); }));
       paint(); toast(wrong.size ? `${wrong.size} letra${wrong.size > 1 ? 's' : ''} mal` : 'Todo bien hasta ahora');
     };
-    const reveal = h('button', { type: 'button', class: 'pill' }, 'Revelar palabra');
-    reveal.onclick = () => { if (!cur) return toast('Elegí una palabra primero'); cellsOf(cur).forEach(([x, y], i) => { fill[y][x] = cur.answer[i]; }); paint(); checkDone(); };
+    // One letter at a time: the selected square if it's empty or wrong, otherwise the next empty or wrong one in the word.
+    const reveal = h('button', { type: 'button', class: 'pill' }, 'Revelar letra');
+    reveal.onclick = () => {
+      if (!cur) return toast('Elegí una casilla primero');
+      const cells = cellsOf(cur);
+      const bad = (i) => { const [x, y] = cells[i]; return fill[y][x] !== cur.answer[i]; };
+      let i = bad(pos) ? pos : -1;
+      for (let k = 1; i < 0 && k <= cells.length; k++) { const j = (pos + k) % cells.length; if (bad(j)) i = j; }
+      if (i < 0) return toast('Esta palabra ya está completa');
+      const [x, y] = cells[i];
+      fill[y][x] = cur.answer[i]; wrong.delete(`${x},${y}`);
+      pos = Math.min(i + 1, cells.length - 1);
+      paint(); checkDone(); keyIn.focus();
+    };
     const tools = h('div', { class: 'row wrap', style: 'gap:8px;justify-content:center' }, check, reveal);
     if (isWide) body.replaceChildren(h('div', { class: 'cols board-side' },
       h('section', { class: 'card', style: 'gap:14px;padding:20px' }, clueBar, h('div', { style: 'overflow-x:auto;padding:4px 0' }, board), keyIn, tools),

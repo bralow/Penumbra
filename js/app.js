@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.19-d (tarjetas nuevas y color propio)';
+export const APP_VERSION = '2026.11.20-a (entonación, gramática y más práctica)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
@@ -22,6 +22,8 @@ const routes = {
   practicar: { tab: 'practicar', load: () => import('./screens/practicar.js') },
   sombra: { tab: 'practicar', load: () => import('./screens/sombra.js') },
   vos: { tab: 'practicar', load: () => import('./screens/vos.js') },
+  gramatica: { tab: 'practicar', load: () => import('./screens/gramatica.js') },
+  entonacion: { tab: 'practicar', load: () => import('./screens/entonacion.js') },
   charla: { tab: 'practicar', load: () => import('./screens/charla.js') },
   escribir: { tab: 'practicar', load: () => import('./screens/escribir.js') },
   diario: { tab: 'practicar', load: () => import('./screens/diario.js') },
@@ -71,7 +73,8 @@ async function route() {
   prevName = name; prevHash = hash;
   // Back to Practicar from one of its tools, or back to the Diario calendar from an entry: land where you were.
   const restore = (name === 'practicar' && from && from !== name && routes[from] && (routes[from].tab === 'practicar' || from === 'calentamiento' || from === 'cultura'))
-    || (hash === '#/diario' && /^#\/diario\?entrada=/.test(fromHash || ''));
+    || (hash === '#/diario' && /^#\/diario\?entrada=/.test(fromHash || ''))
+    || (hash === '#/escribir' && /^#\/escribir\?texto=/.test(fromHash || ''));
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   shell.update(r.tab);
   main.dataset.screen = routes[name] ? name : 'hoy';

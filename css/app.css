@@ -370,3 +370,20 @@ button.cal-day.today { outline: 2px solid var(--ink); outline-offset: 1px; }
 .fc-faces .fc-label { font-family: var(--display); font-weight: 700; font-size: 16px; letter-spacing: .12em; text-align: center; color: var(--accent); }
 .fc-faces .fc-label.back { color: var(--magenta); }
 @media (min-width: 1024px) { .fc-faces.two { grid-template-columns: repeat(2, minmax(0, 440px)); justify-content: center; } }
+
+/* Breath groups and beats on practice sentences */
+.pros-line { font-family: var(--display); font-weight: 600; line-height: 1.6; }
+.pros-group { white-space: normal; }
+.pros-bar { color: var(--accent); font-weight: 700; white-space: pre; }
+.pros-bar.major { color: var(--gold-text); }
+.pros-beat { color: var(--accent); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.pros-nuc { color: var(--accent-ink); background: var(--accent); border-radius: 4px; padding: 0 2px; }
+.pros-weak { color: var(--muted); font-weight: 500; }
+
+/* Trabalenguas: syllables coloured by pace */
+.pace-bar { display: flex; flex-wrap: wrap; gap: 3px; font-family: var(--display); font-weight: 600; }
+.pace-cell { padding: 2px 5px; border-radius: 6px; font-size: 14px; border-bottom: 3px solid transparent; }
+.pace-cell.ok { background: color-mix(in srgb, #22c55e 14%, transparent); border-color: #22c55e; }
+.pace-cell.fast { background: color-mix(in srgb, #ef4444 18%, transparent); border-color: #ef4444; }
+.pace-cell.slow { background: color-mix(in srgb, #3b82f6 18%, transparent); border-color: #3b82f6; }
+.pace-key.ok { color: #16a34a; } .pace-key.fast { color: #ef4444; } .pace-key.slow { color: #3b82f6; }

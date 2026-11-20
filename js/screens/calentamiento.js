@@ -4,6 +4,7 @@ import { getSettings } from '../settings.js';
 import { transcribe } from '../ipa.js';
 import { Player } from '../audio.js';
 import { log } from '../progress.js';
+import { prosodyLine, pauseLegend, showPauses, setShowPauses } from '../prosody.js';
 
 // Daily warm-up: 5 short clips; each plays, then you repeat out loud in a timed gap. Twice per clip.
 const COUNT = 5, REPS = 2;
@@ -28,7 +29,13 @@ export async function render(main) {
   const fill = h('div', { style: 'width:0%' });
   ring.append(fill);
   const startBtn = h('button', { type: 'button', class: 'btn' }, iconEl('play'), 'Empezar');
-  const card = h('section', { class: 'card', style: 'gap:14px;padding:22px 20px' }, step, sentence, ipa, cue, ring, startBtn);
+  // Breath groups: / where to pause, the stressed syllables as beats.
+  let text = '';
+  const pausesBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(showPauses()), style: 'min-height:34px;font-size:12px' }, 'Pausas y ritmo');
+  const legend = h('div', { hidden: !showPauses() }, pauseLegend());
+  const paint = () => { sentence.replaceChildren(showPauses() && text ? prosodyLine(text, { size: 23 }) : text || 'Preparate para repetir en voz alta.'); legend.hidden = !showPauses(); };
+  pausesBtn.onclick = () => { setShowPauses(!showPauses()); pausesBtn.setAttribute('aria-pressed', String(showPauses())); paint(); };
+  const card = h('section', { class: 'card', style: 'gap:14px;padding:22px 20px' }, h('div', { class: 'between' }, step, pausesBtn), sentence, legend, ipa, cue, ring, startBtn);
   main.append(card, h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Cinco frases cortas. Cada una suena y enseguida la repetís en voz alta, sin pensar: es para despertar la boca antes de practicar. Dos vueltas por frase, unos dos minutos.'));
 
   const player = new Player();
@@ -56,7 +63,7 @@ export async function render(main) {
     for (let i = 0; i < set.length && !cancelled; i++) {
       const c = set[i];
       const blob = await db.audioFor(c.id);
-      sentence.textContent = c.text; ipa.textContent = transcribe(c.text);
+      text = c.text; paint(); ipa.textContent = transcribe(c.text);
       for (let r = 0; r < REPS && !cancelled; r++) {
         step.textContent = `FRASE ${i + 1} DE ${set.length} · VUELTA ${r + 1}`;
         cue.textContent = 'Escuchá…'; cue.style.color = 'var(--ink)'; fill.style.width = '0%';
@@ -76,6 +83,6 @@ export async function render(main) {
   }
   startBtn.onclick = run;
   step.textContent = `${set.length} FRASES`;
-  sentence.textContent = 'Preparate para repetir en voz alta.';
+  paint();
   return () => { cancelled = true; cancelAnimationFrame(raf); player.load(null); };
 }

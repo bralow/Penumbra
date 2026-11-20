@@ -6,12 +6,12 @@ import { db } from '../db.js';
 import { getSettings } from '../settings.js';
 import { transcribe } from '../ipa.js';
 import { Player } from '../audio.js';
-import { phonemeStatus, events } from '../progress.js';
+import { phonemeStatus, events, skills } from '../progress.js';
 import { dayNumber, cardFor } from './cultura.js';
 import { CARDS } from '../culturadata.js';
 import { buildQueue, settings as penSettings, dayStart } from '../penumbra.js';
 
-export const HOY_BLOCKS = { cultura: 'Tarjeta del día', sombra: 'Sombra del día', charla: 'Charlá con Flor', atajos: 'Calentamiento y Vos', progreso: 'Tu progreso', frase: 'Frase del día' };
+export const HOY_BLOCKS = { enfoque: 'Enfoque recomendado', cultura: 'Tarjeta del día', sombra: 'Sombra del día', charla: 'Charlá con Flor', atajos: 'Calentamiento y Vos', progreso: 'Tu progreso', frase: 'Frase del día' };
 
 const PHRASES = [
   ['Che, ¿me pasás la yerba?', 'Hey, can you pass me the yerba?'],
@@ -101,6 +101,9 @@ export async function render(main) {
       h('a', { href: due ? '#/sesion' : '#/repaso', class: 'btn' }, iconEl('play'), due ? 'Empezar repaso' : 'Ver Penumbra'),
       h('a', { href: '#/sesion?modo=practica&set=todo&n=20', class: 'btn ghost' }, 'Práctica libre'),
       vault ? h('a', { href: '#/boveda', class: 'tag warn', style: 'margin-left:auto' }, `🔒 ${vault} en la bóveda`) : '')));
+
+  // --- Balanced practice: the skill that's lowest or least practised lately, with where to train it
+  if (!hidden.has('enfoque')) { const card = focusCard(log); if (card) left.append(card); }
 
   // --- Card of the day
   if (!hidden.has('cultura')) {
@@ -213,4 +216,45 @@ export async function render(main) {
   }
   if (!right.childElementCount) right.remove();
   return () => player.load(null);
+}
+
+// --- Enfoque recomendado: compares the five skills of Tu progreso with what you practised in the last 7 days
+// (flashcard reviews count too) and points at the one that's both weakest and most neglected.
+const AXIS_OF = { oido: 'escucha', podcast: 'escucha', canciones: 'escucha', sombra: 'pron', traba: 'pron', elision: 'pron', warmup: 'pron', diario: 'pron',
+  ipa: 'ipa', transformar: 'ipa', lookup: 'lectura', cultura: 'lectura', cognados: 'lectura', crucigrama: 'lectura', vos: 'vos', gramatica: 'vos', escribir: 'vos', charla: 'vos' };
+const ACT_NAMES = { tarjetas: 'tarjetas', escucha: 'escucha', pron: 'pronunciación', ipa: 'IPA', lectura: 'lectura', vos: 'gramática' };
+const TOOLS = {
+  escucha: [['#/oido', 'Oído'], ['#/entonacion', 'Entonación'], ['#/podcast', 'Podcast']],
+  pron: [['#/entonacion', 'Entonación'], ['#/sombra', 'Sombra'], ['#/trabalenguas', 'Trabalenguas']],
+  ipa: [['#/ipa', 'IPA'], ['#/elision', 'Elisión']],
+  lectura: [['#/leer', 'Lectura'], ['#/libros', 'Libros'], ['#/cultura', 'Tarjeta del día']],
+  vos: [['#/gramatica', 'Gramática'], ['#/escribir', 'Escribir'], ['#/charla', 'Charla']],
+};
+const lc = (x) => x.charAt(0).toLowerCase() + x.slice(1);
+function focusCard(revlog) {
+  const since = Date.now() - 7 * DAY;
+  const count = { tarjetas: revlog.filter((r) => r.ts >= since).length, escucha: 0, pron: 0, ipa: 0, lectura: 0, vos: 0 };
+  for (const e of events()) {
+    if (e.t < since) continue;
+    const ax = e.type === 'entonacion' ? (e.mode === 'quiz' ? 'escucha' : 'pron') : AXIS_OF[e.type];
+    if (ax) count[ax]++;
+  }
+  const total = Object.values(count).reduce((a, b) => a + b, 0);
+  const sk = skills();
+  const scored = sk.map((x) => ({ ...x, recent: count[x.id] || 0, score: x.value * 0.5 + Math.min(1, ((count[x.id] || 0) / Math.max(1, total)) * 5) * 0.5 }));
+  scored.sort((a, b) => a.score - b.score || a.recent - b.recent);
+  const pick = scored[0];
+  if (!pick) return null;
+  const top = Object.entries(count).filter(([, n]) => n).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const share = top.length ? Math.round((top.reduce((a, [, n]) => a + n, 0) / total) * 100) : 0;
+  const why = !total ? `Esta semana todavía no practicaste. Un buen arranque: ${lc(pick.label)}.`
+    : pick.recent ? `Es tu punto más flojo (${Math.round(pick.value * 100)}%) y esta semana le dedicaste poco: ${pick.recent} de ${total} actividades.`
+      : `Esta semana: ${share}% ${top.map(([k]) => ACT_NAMES[k]).join(' y ')}, y nada de ${lc(pick.label)}.`;
+  const tools = TOOLS[pick.id] || [];
+  return h('section', { class: 'card', style: 'gap:10px;border-color:color-mix(in srgb, var(--accent) 45%, var(--line))' },
+    h('div', { class: 'between' }, h('span', { class: 'kicker' }, 'ENFOQUE RECOMENDADO'), h('a', { href: '#/progreso', class: 'small', style: 'font-weight:700;text-decoration:none' }, 'Ver radar')),
+    h('b', { style: 'font-family:var(--display);font-size:21px' }, pick.label),
+    h('p', { class: 'small', style: 'line-height:1.45;color:var(--muted)' }, why),
+    h('div', { class: 'meter' }, h('div', { class: 'bar' }, h('div', { style: `width:${Math.max(3, Math.round(pick.value * 100))}%` }))),
+    h('div', { class: 'row wrap', style: 'gap:8px' }, ...tools.map(([href, label], i) => h('a', { href, class: i ? 'btn ghost' : 'btn', style: 'min-height:42px;padding:0 16px' }, label))));
 }
