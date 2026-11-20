@@ -36,8 +36,9 @@ const DECK_BY_TAG = {
   '#Sombra': 'Sombra', '#Vos': 'Vos', '#Oído': 'Pronunciación', '#Oido': 'Pronunciación', '#IPA': 'Pronunciación',
   '#Trabalenguas': 'Pronunciación', '#Cultura': 'Cultura', '#FraseDelDía': 'Frases', '#Recetas': 'Recetas',
   '#Recetario': 'Recetas', '#Cocina': 'Recetas', '#Cognados': 'Cognados', '#Canciones': 'Canciones', '#PlimPlim': 'Canciones',
+  '#Entonación': 'Pronunciación', '#Gramática': 'Gramática',
 };
-const PRON_TAGS = new Set(['#Oído', '#Oido', '#IPA', '#Trabalenguas']);
+const PRON_TAGS = new Set(['#Oído', '#Oido', '#IPA', '#Trabalenguas', '#Entonación']);
 const DECK_COLORS = ['#3a6ea5', '#b5462a', '#2e7d6b', '#a0761a', '#7b4fa3', '#c2185b', '#5d6d7e', '#00838f'];
 
 // Decks with the same name (made separately on two devices before they synced) become one:

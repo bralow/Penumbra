@@ -7,13 +7,16 @@ import { Waveform, onset, speechEnd } from '../waveform.js';
 import { pitchTrack } from '../pitch.js';
 import { alignTakes } from '../dtw.js';
 import { log } from '../progress.js';
+import { FEATURES, prosodyLine, pauseLegend, showPauses, setShowPauses } from '../prosody.js';
 
 const SESSION = 10;
 let session = null; // survives tab switches: { ids, index, level }
 let viewMode = 'wave'; // 'wave' | 'pitch'
+const FOCO = 'cadencia.sombra.foco';
+let focus = (() => { try { return localStorage.getItem(FOCO) || 'todas'; } catch { return 'todas'; } })();
 
 // Header for the speaking and writing tools: back to Practicar and the tool's name.
-const TITLES = { sombra: 'Sombra', charla: 'Charla', escribir: 'Escribir', diario: 'Diario', vos: 'Vos', oido: 'Oído', traba: 'Trabalenguas', elision: 'Elisión', cognados: 'Cognados' };
+const TITLES = { entonacion: 'Entonación', gramatica: 'Gramática', sombra: 'Sombra', charla: 'Charla', escribir: 'Escribir', diario: 'Diario', vos: 'Vos', oido: 'Oído', traba: 'Trabalenguas', elision: 'Elisión', cognados: 'Cognados' };
 export function practiceTabs(active) { return backHead(TITLES[active] || 'Practicar'); }
 
 export async function render(main) {
@@ -33,12 +36,23 @@ export async function render(main) {
     return () => {};
   }
 
-  // Pick a session of clips near the current level.
+  // Prosody focus: keep the round to one kind of sentence (questions, emphasis, heavy aspiration, fast speech) or mix.
+  const feat = (id) => FEATURES.find((f) => f.id === id) || FEATURES[0];
+  const counts = Object.fromEntries(FEATURES.map((f) => [f.id, all.filter((c) => f.test(c.text)).length]));
+  if (!counts[focus]) focus = 'todas';
+  const focusBtns = FEATURES.map((f) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(f.id === focus), disabled: !counts[f.id], style: 'min-height:36px;font-size:12px', title: `${counts[f.id]} frases` },
+    f.label, f.id !== 'todas' ? h('span', { class: 'muted', style: 'font-weight:500;margin-left:4px' }, String(counts[f.id])) : null));
+  focusBtns.forEach((b, i) => { b.onclick = () => { focus = FEATURES[i].id; try { localStorage.setItem(FOCO, focus); } catch { /* ignore */ } session = null; window.dispatchEvent(new Event('cadencia:rerender')); }; });
+  main.append(h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Foco de prosodia', style: 'gap:6px;align-items:center' },
+    h('span', { class: 'kicker', style: 'color:var(--muted);margin-right:2px' }, 'FOCO'), ...focusBtns));
+
+  // Pick a session of clips near the current level (within the chosen focus).
   const li = LEVELS.indexOf(settings.level);
-  let pool = all.filter((c) => Math.abs(LEVELS.indexOf(c.level) - li) <= 1);
-  if (pool.length < SESSION) pool = all;
-  if (!session || session.level !== settings.level || !session.ids.every((id) => all.some((c) => c.id === id))) {
-    session = { ids: shuffle(pool).slice(0, SESSION).map((c) => c.id), index: 0, level: settings.level };
+  const focused = all.filter((c) => feat(focus).test(c.text));
+  let pool = focused.filter((c) => Math.abs(LEVELS.indexOf(c.level) - li) <= 1);
+  if (pool.length < SESSION) pool = focused;
+  if (!session || session.level !== settings.level || session.focus !== focus || !session.ids.every((id) => all.some((c) => c.id === id))) {
+    session = { ids: shuffle(pool).slice(0, SESSION).map((c) => c.id), index: 0, level: settings.level, focus };
   }
   const byId = new Map(all.map((c) => [c.id, c]));
 
@@ -47,7 +61,12 @@ export async function render(main) {
   const speakerChip = h('span', { class: 'chip' });
   const sentence = h('p', { class: 'sentence', lang: 'es-AR' });
   const ipaLine = h('p', { class: 'ipa' });
-  main.append(h('section', { class: 'card' }, h('div', { class: 'row', style: 'gap:6px' }, levelChip, speakerChip), sentence, ipaLine));
+  // Breath groups: / where to pause, the stressed syllables as beats.
+  const pausesBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(showPauses()), style: 'min-height:34px;font-size:12px;margin-left:auto' }, 'Pausas y ritmo');
+  const legend = h('div', { hidden: !showPauses() }, pauseLegend());
+  const paintSentence = () => { if (!current) return; sentence.replaceChildren(showPauses() ? prosodyLine(current.text, { size: 23 }) : current.text); legend.hidden = !showPauses(); };
+  pausesBtn.onclick = () => { setShowPauses(!showPauses()); pausesBtn.setAttribute('aria-pressed', String(showPauses())); paintSentence(); };
+  main.append(h('section', { class: 'card' }, h('div', { class: 'row', style: 'gap:6px' }, levelChip, speakerChip, pausesBtn), sentence, ipaLine, legend));
 
   // --- Waveform card
   const canvas = h('canvas', { class: 'wave', role: 'img', 'aria-label': 'Ondas de la voz nativa y la tuya' });
@@ -201,7 +220,7 @@ export async function render(main) {
     prevBtn.disabled = session.index === 0;
     levelChip.textContent = current.level;
     speakerChip.textContent = current.speaker ? `OpenSLR · ${current.speaker}` : 'OpenSLR';
-    sentence.textContent = current.text;
+    paintSentence();
     ipaLine.textContent = transcribe(current.text);
     mine.load(null); mineBtn.disabled = true; mixBtn.disabled = true;
     wave.offset = 0; wave.scale = 1; matchLen.setAttribute('aria-pressed', 'false');

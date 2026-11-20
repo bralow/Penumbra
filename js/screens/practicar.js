@@ -23,6 +23,8 @@ const ICONS = {
   slang: '<path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h4"/>',
   mate: '<path d="M7 8h10l-1 10a3 3 0 0 1-3 2h-2a3 3 0 0 1-3-2z"/><path d="M14 8l3-5"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  tune: '<path d="M3 15c2-6 4-6 6 0s4 6 6 0 4-8 6-8"/>',
+  steps: '<path d="M4 20h4v-4h4v-4h4V8h4"/><path d="M4 4h6"/>',
 };
 const icon = (k) => h('span', { class: 'ico', html: `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>` });
 
@@ -39,6 +41,10 @@ export async function render(main) {
   const [{ LUNFARDO }, { RECETAS }, { TRABAS }, { CARDS }, { LENSES }, { VERBS }, { CONTRASTS }] = await Promise.all([
     import('../lunfardo.js'), import('../recetas.js'), import('../trabadata.js'), import('../culturadata.js'), import('../escribir.js'), import('../vosdata.js'), import('../pairsdata.js')]);
   const ai = geminiReady();
+  const [{ TUNES }, { MODULES }] = await Promise.all([import('../entonaciondata.js'), import('../gramaticadata.js')]);
+  const gp = (() => { try { return JSON.parse(localStorage.getItem('cadencia.gramatica') || '{}'); } catch { return {}; } })();
+  const passed = MODULES.filter((m) => gp[m.id] && gp[m.id].best >= 80).length;
+  const gramMeta = passed ? `${passed} de ${MODULES.length} módulos superados` : `${MODULES.length} módulos`;
   const takes = events('sombra').filter((e) => e.recorded).length;
   const shows = new Set((await db.all('episodes')).map((e) => e.show));
 
@@ -50,8 +56,10 @@ export async function render(main) {
   main.append(...section('HABLAR Y PRONUNCIAR',
     tool({ href: '#/sombra', ic: 'mic', color: '--accent', title: 'Sombra', text: 'Imitá frases de hablantes argentinos y compará tu voz con la nativa, onda por onda y en melodía.', meta: clips ? `${plural(clips, 'clip', 'clips')} · ${plural(takes, 'toma', 'tomas')}` : 'Importá los clips en Ajustes' }),
     tool({ href: '#/charla', ic: 'chat', color: '--c-green', title: 'Charla con Flor', text: 'Tu compañera porteña con IA: voseo y lunfardo, por texto o en voz en vivo.', meta: ai ? 'Gemini Live y texto' : 'Necesita la clave de Gemini' }),
+    tool({ href: '#/entonacion', ic: 'tune', color: '--c-cyan', title: 'Entonación', text: 'La melodía de la frase: preguntas que suben o bajan, pedidos, ¿no? y ¿viste?, y el foco que corrige.', meta: `${TUNES.length} tipos · escuchar y grabar` }),
     tool({ href: '#/calentamiento', ic: 'flame', color: '--c-amber', title: 'Calentamiento', text: 'Cinco frases en voz alta, dos veces cada una. Dos minutos para soltar la boca.', meta: clips ? '5 frases · 2 minutos' : 'Usa los clips de OpenSLR' }),
     tool({ href: '#/vos', ic: 'vos', color: '--c-indigo', title: 'Vos', text: 'Tenés, querés, vení, decime: el voseo del presente y del imperativo, en ráfagas cortas.', meta: plural(VERBS.length, 'verbo', 'verbos') }),
+    tool({ href: '#/gramatica', ic: 'steps', color: '--c-green', title: 'Gramática', text: 'Paso a paso de Vos a Escribir: pronombres pegados, subjuntivo, marcadores porteños y preposiciones.', meta: gramMeta }),
     tool({ href: '#/oido', ic: 'ear', color: '--c-cyan', title: 'Oído', text: 'Distinguí sonidos parecidos que en Buenos Aires cambian el significado.', meta: clips ? `${plural(CONTRASTS.length, 'contraste', 'contrastes')} · ${CONTRASTS.reduce((n, c) => n + c.pairs.length, 0)} pares` : 'Usa los clips de OpenSLR' }),
     tool({ href: '#/trabalenguas', ic: 'tongue', color: '--c-rose', title: 'Trabalenguas', text: 'Destrabá la lengua con trabalenguas a tres velocidades.', meta: plural(TRABAS.length, 'trabalenguas', 'trabalenguas') }),
     tool({ href: '#/elision', ic: 'cut', color: '--c-violet', title: 'Elisión', text: 'La «s» que se aspira o desaparece: escuchala en frases reales y a velocidad.', meta: clips ? 'Frases de OpenSLR' : 'Usa los clips de OpenSLR' })));

@@ -5,6 +5,7 @@ import { analyzeWord, transcribe } from '../ipa.js';
 import { Player, Recorder, decode, peaks } from '../audio.js';
 import { onset, speechEnd } from '../waveform.js';
 import { log } from '../progress.js';
+import { syllableBeats, envelope } from '../acoustic.js';
 import { florClip } from '../florvoz.js';
 import { useFlor, phoneSay, stopPhone } from '../voz.js';
 
@@ -160,9 +161,58 @@ export async function render(main) {
         h('span', { class: 'kicker' }, 'TU VELOCIDAD'),
         h('p', { style: 'font-family:var(--display);font-size:26px;font-weight:700' }, `${fmt(rate)} sílabas/s`),
         h('p', { class: 'muted small' }, `Meta a ${speedKey === '1' ? '1.0' : speedKey}x: ${fmt(target)} sílabas/s · ${lay.syllables} sílabas en ${fmt(secs)} s`),
-        h('p', { style: 'font-size:15px' }, verdict));
+        h('p', { style: 'font-size:15px' }, verdict),
+        pacing(buf, onset(track), speechEnd(track)));
       result.hidden = false;
     } catch { toast('No pude medir la grabación'); }
+  }
+
+  // Where the rhythm rushed or dragged: your syllable beats (from loudness peaks) against an even pace
+  // over the same time, and each syllable coloured by how long it took compared with your own average.
+  function pacing(buf, t0, t1) {
+    const beats = syllableBeats(buf, t0, t1);
+    const syl = []; // per syllable: text and whether a pause (comma, period) follows
+    lay.parts.forEach((p) => { if (p.text === undefined) syl.push({ text: p.chars.map((c) => c.ch).join(''), pause: false }); else if (p.pause && syl.length) syl[syl.length - 1].pause = true; });
+    const S = syl.length, P = beats.length;
+    const box = h('div', { style: 'display:flex;flex-direction:column;gap:8px;margin-top:6px' });
+    if (S < 3 || P < 3) { box.append(h('p', { class: 'muted small' }, 'No pude marcar las sílabas en esta toma. Grabala más cerca del micrófono.')); return box; }
+    const at = (i) => beats[Math.round((i * (P - 1)) / (S - 1))].t;
+    const units = syl.map((x) => 1 + (x.pause ? 1 : 0));
+    const per = (at(S - 1) - at(0)) / Math.max(1, units.slice(0, -1).reduce((a, b) => a + b, 0));
+    const marks = syl.map((x, i) => {
+      if (i === S - 1) return 'ok';
+      const r = (at(i + 1) - at(i)) / (per * units[i]);
+      return r < 0.6 ? 'fast' : r > 1.6 ? 'slow' : 'ok';
+    });
+    // Canvas: your loudness envelope with your beats (top) and the even pace (bottom).
+    const cv = h('canvas', { style: 'width:100%;height:96px;display:block', role: 'img', 'aria-label': 'Tus golpes de sílaba comparados con un ritmo parejo' });
+    box.append(h('span', { class: 'kicker', style: 'color:var(--muted)' }, 'TU RITMO, SÍLABA POR SÍLABA'), cv,
+      h('div', { class: 'pace-bar' }, ...syl.map((x, i) => h('span', { class: `pace-cell ${marks[i]}`, title: marks[i] === 'fast' ? 'apurado' : marks[i] === 'slow' ? 'arrastrado' : 'parejo' }, x.text))),
+      h('p', { class: 'muted', style: 'font-size:12px;line-height:1.4' }, h('b', { class: 'pace-key fast' }, 'apurado'), ' · ', h('b', { class: 'pace-key ok' }, 'parejo'), ' · ', h('b', { class: 'pace-key slow' }, 'arrastrado'),
+        ` · comparado con tu propio promedio${Math.abs(P - S) / S > 0.3 ? `. Ojo: marqué ${P} golpes para ${S} sílabas, así que es aproximado` : ''}.`));
+    const rushed = syl.filter((_, i) => marks[i] === 'fast').map((x) => x.text), dragged = syl.filter((_, i) => marks[i] === 'slow').map((x) => x.text);
+    if (rushed.length || dragged.length) box.append(h('p', { class: 'small', style: 'line-height:1.45' },
+      rushed.length ? `Apuraste en «${rushed.slice(0, 5).join('·')}». ` : '', dragged.length ? `Te frenaste en «${dragged.slice(0, 5).join('·')}».` : ''));
+    else box.append(h('p', { class: 'small' }, '¡Ritmo parejo de punta a punta!'));
+    requestAnimationFrame(() => {
+      const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, hh = cv.clientHeight;
+      cv.width = w * dpr; cv.height = hh * dpr;
+      const g = cv.getContext('2d'); g.scale(dpr, dpr);
+      const env = envelope(buf); let top = 0; env.v.forEach((v, i) => { if (env.t[i] >= t0 && env.t[i] <= t1) top = Math.max(top, v); });
+      const px = (t) => 6 + ((t - t0) / Math.max(0.01, t1 - t0)) * (w - 12);
+      const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+      g.fillStyle = css('--user'); g.globalAlpha = 0.35; g.beginPath(); g.moveTo(px(t0), 34);
+      env.v.forEach((v, i) => { if (env.t[i] >= t0 && env.t[i] <= t1) g.lineTo(px(env.t[i]), 34 - (v / (top || 1)) * 28); });
+      g.lineTo(px(t1), 34); g.closePath(); g.fill(); g.globalAlpha = 1;
+      const col = { fast: '#ef4444', ok: '#22c55e', slow: '#3b82f6' };
+      syl.forEach((_, i) => { g.fillStyle = col[marks[i]]; g.fillRect(px(at(i)) - 1.5, 40, 3, 16); });
+      // Even pace over the same span (pauses take one extra beat).
+      let u = 0; g.fillStyle = css('--accent');
+      syl.forEach((_, i) => { g.fillRect(px(at(0) + u * per) - 1, 66, 2, 16); u += units[i]; });
+      g.font = '600 10px Inter, sans-serif'; g.fillStyle = css('--muted');
+      g.fillText('vos', 6, 54); g.fillText('parejo', 6, 94);
+    });
+    return box;
   }
 
   recBtn.onclick = async () => {

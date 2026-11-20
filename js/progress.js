@@ -22,20 +22,21 @@ const recent = (list, n) => list.slice(-n);
 const ramp = (n, full) => Math.min(1, n / full); // little data -> smaller score
 
 export function skills() {
-  const oido = events('oido'), vos = events('vos'), ipa = events('ipa'), sombra = events('sombra'), traba = events('traba');
+  const ent = events('entonacion'), entQ = ent.filter((e) => e.mode === 'quiz'), entP = ent.filter((e) => e.mode === 'prod');
+  const oido = [...events('oido'), ...entQ], vos = [...events('vos'), ...events('gramatica')], ipa = events('ipa'), sombra = events('sombra'), traba = events('traba');
   const lookups = events('lookup').length, cog = events('cognados');
   const storiesRead = Object.values(read('cadencia.read', {})).reduce((n, l) => n + l.length, 0);
   const rhythm = sombra.filter((e) => typeof e.rhythm === 'number').map((e) => e.rhythm);
-  const trabaOk = traba.map((e) => e.ok);
+  const trabaOk = [...traba.map((e) => e.ok), ...entP.map((e) => e.ok)];
   const pron = rhythm.length || trabaOk.length
-    ? ((rhythm.length ? recent(rhythm, 20).reduce((a, b) => a + b, 0) / recent(rhythm, 20).length : pct(recent(trabaOk, 20))) * 0.6 + pct(recent(trabaOk, 20)) * 0.4) * ramp(rhythm.length + traba.length, 15)
+    ? ((rhythm.length ? recent(rhythm, 20).reduce((a, b) => a + b, 0) / recent(rhythm, 20).length : pct(recent(trabaOk, 20))) * 0.6 + pct(recent(trabaOk, 20)) * 0.4) * ramp(rhythm.length + trabaOk.length, 15)
     : 0;
   return [
     { id: 'escucha', label: 'Escucha', value: pct(recent(oido.map((e) => e.correct), 50)) * ramp(oido.length, 20), n: oido.length },
-    { id: 'pron', label: 'Pronunciación', value: pron, n: rhythm.length + traba.length + sombra.filter((e) => e.recorded).length },
+    { id: 'pron', label: 'Pronunciación', value: pron, n: rhythm.length + traba.length + entP.length + sombra.filter((e) => e.recorded).length },
     { id: 'ipa', label: 'Fonética e IPA', value: pct(recent(ipa.map((e) => e.correct), 50)) * ramp(ipa.length, 20), n: ipa.length },
     { id: 'lectura', label: 'Lectura y vocabulario', value: Math.min(1, storiesRead * 0.04 + lookups * 0.01 + pct(recent(cog.map((e) => e.correct), 30)) * ramp(cog.length, 20) * 0.4), n: storiesRead + lookups + cog.length },
-    { id: 'vos', label: 'Gramática (vos)', value: pct(recent(vos.map((e) => e.correct), 50)) * ramp(vos.length, 20), n: vos.length },
+    { id: 'vos', label: 'Gramática del vos', value: pct(recent(vos.map((e) => e.correct), 50)) * ramp(vos.length, 20), n: vos.length },
   ];
 }
 

@@ -19,7 +19,7 @@ function buildQuestions(contrast, clips) {
     for (const word of pair) {
       const re = wordRe(word);
       const hits = clips.filter((c) => re.test(c.text));
-      for (const c of shuffle(hits).slice(0, 3)) qs.push({ pair, word, clip: c });
+      for (const c of shuffle(hits).slice(0, 3)) qs.push({ pair, word, clip: c, contrast: contrast.id });
     }
   }
   // Spread across pairs so one common word ("esta") doesn't take over.
@@ -45,10 +45,21 @@ export async function render(main) {
   }
 
   const available = Object.fromEntries(CONTRASTS.map((c) => [c.id, buildQuestions(c, clips).length]));
+  // Mezcla: a round of 10 drawn from every category that has questions.
+  const MIX = { id: 'mezcla', label: 'Mezcla', title: 'mezcla de contrastes', note: 'Una ronda de 10 con todos los contrastes mezclados.' };
+  const mixQuestions = () => {
+    const lists = CONTRASTS.filter((c) => available[c.id]).map((c) => buildQuestions(c, clips));
+    const out = [];
+    while (out.length < ROUND && lists.some((l) => l.length)) for (const l of shuffle(lists)) if (l.length && out.length < ROUND) out.push(l.shift());
+    return shuffle(out);
+  };
+  available.mezcla = CONTRASTS.filter((c) => available[c.id]).length >= 2 ? ROUND : 0;
+  const ALL = [MIX, ...CONTRASTS];
+  const byIdC = (id) => ALL.find((x) => x.id === id);
   const bar = h('div');
   main.append(h('div', { class: 'progress' }, bar));
-  const tabs = CONTRASTS.map((c) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(c.id === contrastId), disabled: !available[c.id] }, c.label));
-  tabs.forEach((b, i) => { b.onclick = () => { contrastId = CONTRASTS[i].id; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); newRound(); }; });
+  const tabs = ALL.map((c) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(c.id === contrastId), disabled: !available[c.id] }, c.label));
+  tabs.forEach((b, i) => { b.onclick = () => { contrastId = ALL[i].id; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); newRound(); }; });
   main.append(h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Contraste' }, tabs));
 
   const player = new Player();
@@ -80,9 +91,9 @@ export async function render(main) {
 
   function newRound() {
     if (!available[contrastId]) { const first = CONTRASTS.find((x) => available[x.id]); if (first) contrastId = first.id; }
-    tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(CONTRASTS[j].id === contrastId)));
-    const c = CONTRASTS.find((x) => x.id === contrastId);
-    round = buildQuestions(c, clips);
+    tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(ALL[j].id === contrastId)));
+    const c = byIdC(contrastId);
+    round = contrastId === 'mezcla' ? mixQuestions() : buildQuestions(c, clips);
     idx = 0; score = 0;
     noteEl.textContent = c.note;
     show();
@@ -92,7 +103,8 @@ export async function render(main) {
     answered = false;
     feedback.hidden = true;
     const q = round[idx];
-    const c = CONTRASTS.find((x) => x.id === contrastId);
+    const c = byIdC(q.contrast);
+    noteEl.textContent = c.note;
     counter.textContent = `${idx + 1} / ${round.length}`;
     bar.style.width = `${(idx / round.length) * 100}%`;
     kicker.textContent = c.title.toUpperCase();
@@ -110,7 +122,7 @@ export async function render(main) {
     const q = round[idx];
     const ok = choice === q.word;
     if (ok) score++;
-    log('oido', { contrast: contrastId, correct: ok });
+    log('oido', { contrast: q.contrast, correct: ok });
     options.querySelectorAll('button').forEach((b) => {
       b.disabled = true;
       if (b.textContent === q.word) { b.style.background = 'var(--sel)'; b.style.color = 'var(--sel-ink)'; b.style.opacity = '1'; }
@@ -122,7 +134,7 @@ export async function render(main) {
       q.clip.text.slice(0, i),
       h('mark', { style: 'background:var(--accent);color:var(--accent-ink);border-radius:6px;padding:0 4px;font-weight:700' }, q.clip.text.slice(i, i + m[2].length)),
       q.clip.text.slice(i + m[2].length));
-    const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, 'Guardar en Mazo');
+    const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, '+ Penumbra');
     save.onclick = async () => {
       const other = q.pair.find((w) => w !== q.word);
       await db.put('mazo', { front: q.clip.text, ipa: transcribe(q.clip.text), back: `${q.word} ${transcribe(q.word)} · no ${other} ${transcribe(other)}`, tag: '#Oído', audio: (await db.audioFor(q.clip.id)) || undefined, created: Date.now() });
