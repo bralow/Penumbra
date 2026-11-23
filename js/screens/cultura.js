@@ -1,5 +1,5 @@
 // Tarjeta del día: one short culture card per day, read, heard in Flor's voice, and answered.
-import { h, iconEl, toast } from '../ui.js';
+import { h, iconEl, toast, backHead } from '../ui.js';
 import { CARDS } from '../culturadata.js';
 import { tappableText, markWord, showWordPanel, sentenceWith } from '../wordpanel.js';
 import { florClip } from '../florvoz.js';
@@ -79,19 +79,19 @@ export async function render(main) {
 
   main.append(
     h('div', { class: 'between' },
-      h('a', { href: '#/hoy', class: 'pill', style: 'text-decoration:none;display:flex;align-items:center' }, '← Hoy'),
-      h('div', { class: 'row', style: 'gap:0' }, prev, h('span', { class: 'muted small' }, n === today ? 'Hoy' : `Día ${n + 1}`), next)),
+      backHead('Tarjeta del día', '#/hoy', 'Hoy'),
+      h('div', { class: 'sb-pager', role: 'group', 'aria-label': 'Tarjetas' }, prev, h('span', { class: 'sb-count', style: 'min-width:52px' }, n === today ? 'Hoy' : `Día ${n + 1}`), next)),
     h('section', { class: 'card', style: 'gap:10px' },
       h('div', { class: 'between' }, h('span', { class: 'kicker' }, c.cat.toUpperCase()), h('span', { class: 'muted small' }, fmt(dateFor(n)))),
       h('h1', { style: 'font-size:28px' }, c.title),
       body,
       h('div', { class: 'row wrap', style: 'gap:6px' }, listen, keep)),
     panel,
-    h('section', { class: 'card', style: 'gap:8px' },
-      h('span', { class: 'kicker' }, 'PALABRAS'),
-      ...c.vocab.map(([w, gloss]) => h('div', { style: 'display:flex;flex-direction:column' }, h('b', {}, w), h('span', { class: 'muted small' }, gloss)))),
     h('section', { class: 'card', style: 'gap:10px' },
-      h('span', { class: 'kicker' }, 'TU TURNO · CONTESTÁ'),
+      h('span', { class: 'sb-label' }, 'PALABRAS CLAVE'),
+      h('div', { class: 'vocab-grid' }, ...c.vocab.map(([w, gloss]) => h('div', { class: 'vocab-item' }, h('b', { lang: 'es-AR' }, w), h('span', { class: 'muted small', lang: 'en' }, gloss))))),
+    h('section', { class: 'card', style: 'gap:10px' },
+      h('span', { class: 'sb-label' }, 'TU TURNO · CONTESTÁ'),
       h('p', { style: 'font-size:17px;line-height:1.4;font-family:var(--display)' }, c.q),
       h('div', { class: 'row', style: 'gap:8px' }, speakBtn, writeBtn)),
     h('p', { class: 'muted small', style: 'text-align:center' }, 'Tocá cualquier palabra del texto para ver su significado y su IPA.'));

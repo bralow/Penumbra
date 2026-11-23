@@ -79,7 +79,7 @@ export async function render(main) {
     checked = true;
     input.disabled = true;
     const filled = q.sentence.replace('___', q.answer).replace(/^./, (c) => c.toUpperCase());
-    const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;margin-top:4px;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, 'Guardar en Mazo');
+    const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;margin-top:4px;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, '+ Penumbra');
     save.onclick = async () => {
       await db.put('mazo', { front: filled, ipa: ipaFor(filled), back: `${q.verb.inf} (${q.verb.en}): vos ${q.answer} · ${q.tuForm}`, tag: '#Vos', created: Date.now() });
       toast('Guardado en Penumbra');

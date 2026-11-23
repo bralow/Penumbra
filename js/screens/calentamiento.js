@@ -1,16 +1,16 @@
-import { h, iconEl, shuffle, LEVELS } from '../ui.js';
+import { h, iconEl, shuffle, LEVELS, backHead } from '../ui.js';
 import { db } from '../db.js';
 import { getSettings } from '../settings.js';
 import { ipaFor } from '../ipa.js';
 import { Player } from '../audio.js';
 import { log } from '../progress.js';
-import { prosodyLine, pauseLegend, showPauses, setShowPauses } from '../prosody.js';
+import { prosodyLine, pauseLegend, showPauses, pausesSwitch } from '../prosody.js';
 
 // Daily warm-up: 5 short clips; each plays, then you repeat out loud in a timed gap. Twice per clip.
 const COUNT = 5, REPS = 2;
 
 export async function render(main) {
-  main.append(h('div', { class: 'between' }, h('a', { href: '#/hoy', class: 'pill', style: 'display:flex;align-items:center;text-decoration:none' }, '← Hoy'), h('h1', { style: 'font-size:24px' }, 'Calentamiento')));
+  main.append(h('div', { class: 'between' }, backHead('Calentamiento', '#/hoy', 'Hoy')));
   const clips = await db.all('clips');
   if (!clips.length) {
     main.append(h('section', { class: 'card empty' }, h('h2', {}, 'Faltan los clips'), h('p', { class: 'muted small' }, 'Importá el paquete de OpenSLR en Ajustes.')));
@@ -31,11 +31,12 @@ export async function render(main) {
   const startBtn = h('button', { type: 'button', class: 'btn' }, iconEl('play'), 'Empezar');
   // Breath groups: / where to pause, the stressed syllables as beats.
   let text = '';
-  const pausesBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(showPauses()), style: 'min-height:34px;font-size:12px' }, 'Pausas y ritmo');
-  const legend = h('div', { hidden: !showPauses() }, pauseLegend());
+  const legend = h('div', { class: 'sb-legend', hidden: !showPauses() }, pauseLegend());
   const paint = () => { sentence.replaceChildren(showPauses() && text ? prosodyLine(text, { size: 23 }) : text || 'Preparate para repetir en voz alta.'); legend.hidden = !showPauses(); };
-  pausesBtn.onclick = () => { setShowPauses(!showPauses()); pausesBtn.setAttribute('aria-pressed', String(showPauses())); paint(); };
-  const card = h('section', { class: 'card', style: 'gap:14px;padding:22px 20px' }, h('div', { class: 'between' }, step, pausesBtn), sentence, legend, ipa, cue, ring, startBtn);
+  const pausesBtn = pausesSwitch(() => paint());
+  ipa.classList.add('sb-ipa-text');
+  const card = h('section', { class: 'card', style: 'gap:14px;padding:20px' }, h('div', { class: 'sb-meta' }, step, pausesBtn), sentence,
+    h('div', { class: 'sb-ipa' }, h('span', { class: 'sb-label' }, 'IPA RIOPLATENSE'), ipa), legend, cue, ring, startBtn);
   main.append(card, h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Cinco frases cortas. Cada una suena y enseguida la repetís en voz alta, sin pensar: es para despertar la boca antes de practicar. Dos vueltas por frase, unos dos minutos.'));
 
   const player = new Player();
