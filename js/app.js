@@ -1,6 +1,7 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.23-a (Sombra nueva e IPA porteña coloquial)';
+const SOFT = new Set(['sombra', 'charla', 'entonacion', 'calentamiento', 'vos', 'gramatica', 'oido', 'trabalenguas', 'elision', 'escribir', 'diario', 'leer', 'podcast', 'canciones', 'libros', 'recetas', 'lunfardo', 'cultura']);
+export const APP_VERSION = '2026.11.23-b (práctica con el estilo de Sombra)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
@@ -78,6 +79,8 @@ async function route() {
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   shell.update(r.tab);
   main.dataset.screen = routes[name] ? name : 'hoy';
+  // Practice and reading tools share the soft Sombra look (css: main[data-skin="soft"]).
+  if (SOFT.has(name)) main.dataset.skin = 'soft'; else delete main.dataset.skin;
   main.replaceChildren();
   try {
     const mod = await r.load();

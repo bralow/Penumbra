@@ -54,7 +54,7 @@ export async function render(main) {
   const nextBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Siguiente' }, iconEl('next'));
   const modeBtns = MODES.map(([k, l]) => h('button', { type: 'button', class: 'pill', style: 'min-height:34px;border:none;font-size:12px;white-space:nowrap', 'aria-pressed': String(p.mode === k) }, l));
   modeBtns.forEach((b, i) => { b.onclick = () => { p = setPref({ mode: MODES[i][0] }); modeBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); }; });
-  const player = h('section', { class: 'card', style: 'position:sticky;bottom:calc(env(safe-area-inset-bottom) + 80px);z-index:5;gap:6px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.12)' },
+  const player = h('section', { class: 'card media-dock', 'aria-label': 'Reproductor' },
     h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap;align-items:center' }, nowTitle, timeEl),
     bar,
     h('div', { class: 'row', style: 'gap:18px;flex-wrap:nowrap;align-items:center;justify-content:center' }, prevBtn, playBtn, nextBtn),

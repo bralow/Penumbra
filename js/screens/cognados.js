@@ -32,7 +32,7 @@ function converter(root) {
     const ff = FALSE_FRIENDS.filter((f) => f.looks === w);
     const r = toSpanish(w);
     if (r) {
-      const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;min-height:40px' }, 'Guardar en Mazo');
+      const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;min-height:40px' }, '+ Penumbra');
       save.onclick = async () => { await db.put('mazo', { front: r.es, ipa: ipaFor(r.es), back: `${w} · regla -${r.rule.en} → -${r.rule.es}`, tag: '#Cognados', created: Date.now() }); toast('Guardado en Penumbra'); };
       out.append(h('section', { class: 'card', style: 'gap:8px' },
         h('span', { class: 'kicker' }, `REGLA  -${r.rule.en} → -${r.rule.es}`),
