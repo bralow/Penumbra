@@ -1,10 +1,27 @@
 import { h, iconEl, toast } from './ui.js';
-import { analyzeWord } from './ipa.js';
+import { analyzeWord, ipaFor, ipaWords } from './ipa.js';
 import { db } from './db.js';
 import { speak, ttsReady, argentineAudio, cachedArgentineAudio } from './tts.js';
 import { log, discover } from './progress.js';
 
 const LETTERS = /([A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)/;
+
+// The whole phrase as it's said in connected speech, with the word's stretch marked.
+// nth: which occurrence of the word (0 = first). Returns null if there's no phrase or the word isn't in it.
+export function phraseIPA(sentence, word, nth = 0, style = '') {
+  if (!sentence || !word) return null;
+  const r = ipaWords(sentence);
+  const lw = word.toLowerCase();
+  const hits = r.words.map((w, i) => [w, i]).filter(([w]) => w.word === lw);
+  if (!hits.length || r.words.length < 2) return null;
+  const [, i] = hits[Math.min(nth, hits.length - 1)];
+  // A word that fused into the next one (sinalefa: "mi amigo" → mja…) is marked together with it.
+  let k = i; while (k < r.words.length - 1 && r.words[k].start === r.words[k].end) k++;
+  const { start, end } = r.words[k];
+  if (start < 0) return null;
+  const mark = h('b', { class: 'ipa-hit' }, r.ipa.slice(start, end));
+  return h('p', { class: 'ipa ipa-phrase', style }, r.ipa.slice(0, start), mark, r.ipa.slice(end));
+}
 
 export function features(word, ipa) {
   const w = word.toLowerCase(), out = [];
@@ -64,7 +81,8 @@ export function sentenceWith(text, word) {
 export function showWordPanel(panel, word, { context = '', tag = '#Lectura' } = {}) {
   const a = analyzeWord(word);
   if (!a) return;
-  const ipa = a.ipa;
+  const ipa = a.ipa; // broad, for the feature checks
+  const shown = ipaFor(word);
   log('lookup', { word: a.word });
   discover(ipa);
   const syl = a.spelling.map((s, i) => h('span', { style: `padding:6px 12px;border-radius:10px;background:color-mix(in srgb, var(--hero-ink) 12%, transparent);font-size:15px;${i === a.stress ? 'font-weight:700' : ''}` }, i === a.stress && a.spelling.length > 1 ? s.toUpperCase() : s));
@@ -88,15 +106,16 @@ export function showWordPanel(panel, word, { context = '', tag = '#Lectura' } = 
     // Attach the Argentine audio when the voice is set up, so the Anki card can play it.
     let audio = await cachedArgentineAudio(word.toLowerCase());
     if (!audio && ttsReady()) { try { audio = await argentineAudio(word.toLowerCase()); } catch { audio = null; } }
-    await db.put('mazo', { front: word.toLowerCase(), ipa, back: context, tag, audio: audio || undefined, created: Date.now() });
+    await db.put('mazo', { front: word.toLowerCase(), ipa: shown, back: context, tag, audio: audio || undefined, created: Date.now() });
     toast('Guardado en Penumbra');
   };
   const lw = a.word;
   panel.replaceChildren(...[
     h('div', { class: 'row wrap', style: 'gap:12px;align-items:baseline' },
       h('span', { style: 'font-family:var(--display);font-size:28px;font-weight:700' }, word.toLowerCase()),
-      h('span', { class: 'ipa', style: 'font-size:17px;color:var(--gold-text)' }, ipa)),
+      h('span', { class: 'ipa', style: 'font-size:17px;color:var(--gold-text)' }, shown)),
     sylRow,
+    (() => { const ph = phraseIPA(context, word); return ph ? h('div', { style: 'display:flex;flex-direction:column;gap:3px' }, h('span', { style: 'font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--hero-muted)' }, 'EN LA FRASE, COMO SE DICE'), ph) : null; })(),
     feats.length ? h('div', { style: 'display:flex;flex-direction:column;gap:8px' }, feats) : null,
     h('div', { class: 'row' }, ext(`https://dle.rae.es/${encodeURIComponent(lw)}`, 'Ver en el DLE'), ext(`https://www.asale.org/damer/${encodeURIComponent(lw)}`, 'Americanismos')),
     h('div', { class: 'row' }, listen, save)].filter(Boolean));

@@ -1,9 +1,10 @@
 import { h, toast, shuffle, pageHead, wide, openModal, closeBtn } from '../ui.js';
 import { SOUNDS, CONFUSABLE, WORDS, MEDIA, NARROW_LABEL, DETAIL, DIPHTHONGS } from '../ipadata.js';
-import { transcribe, narrow } from '../ipa.js';
+import { transcribe, narrow, ipaFor, detailedIPA, setDetailedIPA } from '../ipa.js';
 import { log, discover, TRACKED } from '../progress.js';
 import { mouthSVG, describe } from '../boca.js';
 import { steps } from '../transform.js';
+import { openIpaGuide } from '../ipaguide.js';
 import { phoneSay, stopPhone } from '../voz.js';
 
 let mode = 'simbolos';
@@ -13,7 +14,7 @@ const MODES = [['simbolos', 'Símbolos'], ['transformar', 'Transformar'], ['desc
 
 // IPA string -> list of sound tokens (tʃ is one token), without brackets, stress or dots.
 function tokens(ipa) {
-  const s = ipa.replace(/[[\]ˈ.‖|]/g, '').replace(/\s+/g, ' ').trim();
+  const s = ipa.replace(/[[\]ˈ.‖|‿↗↘ˑ]/g, '').replace(/\s+/g, ' ').trim();
   const out = [];
   for (let i = 0; i < s.length; i++) {
     if (s[i] === ' ') continue;
@@ -22,13 +23,12 @@ function tokens(ipa) {
   return out;
 }
 
-// "IPA detallada": narrow Rioplatense transcription with diacritics. Off by default; remembered.
-const DET = 'cadencia.ipa.detallada';
-const detailed = () => { try { return localStorage.getItem(DET) === '1'; } catch { return false; } };
-const setDetailed = (on) => { try { localStorage.setItem(DET, on ? '1' : '0'); } catch { /* ignore */ } };
-const ipaOf = (word, det = detailed()) => (det ? narrow(transcribe(word)) : transcribe(word));
+// "IPA detallada": narrow Rioplatense transcription with diacritics, for the whole app. On by default; remembered.
+const detailed = detailedIPA;
+const setDetailed = setDetailedIPA;
+const ipaOf = (word, det = detailed()) => ipaFor(word, det);
 const COMB = '[̀-ͯ]*';
-const symRe = (sym) => new RegExp(`(${[...sym].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(COMB)}${COMB})`, 'g');
+const symRe = (sym) => (sym === 'h' ? new RegExp(`([hɦ]${COMB})`, 'g') : new RegExp(`(${[...sym].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(COMB)}${COMB})`, 'g'));
 
 // A word with its transcription; the sound in question is underlined inside the IPA. Tap to hear it.
 function highlight(word, symbol, ipa = ipaOf(word)) {
@@ -43,7 +43,7 @@ function highlight(word, symbol, ipa = ipaOf(word)) {
 function detailSwitch(onChange) {
   const sw = h('button', { type: 'button', role: 'switch', 'aria-checked': String(detailed()), class: 'switch' }, h('span', { class: 'knob' }));
   sw.onclick = () => { const on = !detailed(); setDetailed(on); sw.setAttribute('aria-checked', String(on)); onChange(on); };
-  return h('label', { class: 'row', style: 'gap:8px;cursor:pointer;font-size:13px;font-weight:600' }, sw, 'IPA detallada');
+  return h('label', { class: 'row', style: 'gap:8px;cursor:pointer;font-size:13px;font-weight:600', title: 'Con diacríticos (β̞, t̪, ɦ, ã, i̯…) en toda la app' }, sw, 'IPA detallada');
 }
 
 // The sound's video (Seeing Speech), loaded as a file so it also works offline once seen.
@@ -167,12 +167,12 @@ function soundboard(root) {
 
 // Transformar: watch a word or phrase become porteño, one rule at a time.
 function transformer(root) {
-  const input = h('input', { type: 'text', value: 'Las llaves del barco están en el bolsillo', 'aria-label': 'Palabra o frase', autocomplete: 'off', lang: 'es-AR',
+  const input = h('input', { type: 'text', value: '¿Las llaves del barco están en el bolsillo?', 'aria-label': 'Palabra o frase', autocomplete: 'off', lang: 'es-AR',
     style: 'min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:17px;width:100%' });
   const go = h('button', { type: 'button', class: 'btn' }, 'Transformar');
   const listen = h('button', { type: 'button', class: 'pill', style: 'min-height:44px' }, '▶ Escuchar');
   const out = h('div', { style: wide() ? 'display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start' : 'display:flex;flex-direction:column;gap:10px' });
-  const EXAMPLES = ['yo me llamo Guillermo', 'los chicos están en la playa', 'un vaso de agua', 'desde ayer', 'mis amigos'];
+  const EXAMPLES = ['yo me llamo Guillermo', 'los chicos están en la playa', '¿Y vos, qué hacés?', 'la verdad es que no', 'un huevo para mi amigo', 'desde ayer', 'mis amigos'];
   const chips = EXAMPLES.map((e) => { const b = h('button', { type: 'button', class: 'pill', style: 'min-height:34px;font-size:12px' }, e); b.onclick = () => { input.value = e; run(); }; return b; });
   root.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Escribí una palabra o una frase y mirá cómo se convierte, regla por regla, en cómo suena en Buenos Aires.'),
     h('section', { class: 'card', style: 'gap:10px' }, input, h('div', { class: 'row wrap', style: 'gap:6px' }, chips), h('div', { class: 'row', style: 'gap:8px' }, go, listen)), out);
@@ -197,7 +197,8 @@ function transformer(root) {
           st.applies ? ipaLine(st.ipa, st.marks) : '',
           h('p', { class: 'small', style: 'line-height:1.45' }, st.explain));
       }),
-      h('section', { class: 'hero', style: 'gap:6px;grid-column:1/-1' }, h('span', { class: 'kicker' }, 'ASÍ SUENA EN BUENOS AIRES'), h('p', { class: 'ipa', style: 'font-size:24px;color:var(--gold)' }, r.final)));
+      h('section', { class: 'hero', style: 'gap:6px;grid-column:1/-1' }, h('span', { class: 'kicker' }, 'ASÍ SUENA EN BUENOS AIRES'), h('p', { class: 'ipa', style: 'font-size:24px;color:var(--gold)' }, r.final),
+        h('span', { class: 'kicker', style: 'margin-top:6px' }, 'DETALLADA, CON DIACRÍTICOS'), h('p', { class: 'ipa', style: 'font-size:20px;color:var(--hero-ink)' }, narrow(r.final))));
     log('transformar', { words: text.split(/\s+/).length });
   }
   go.onclick = run;
@@ -220,7 +221,7 @@ function decodeGame(root) {
   function show() {
     const w = round[idx];
     counter.textContent = `${idx + 1} / ${round.length}`;
-    ipaEl.textContent = transcribe(w);
+    ipaEl.textContent = ipaFor(w);
     // Distractors: words of similar length, preferring ones that share letters.
     const others = shuffle(WORDS.filter((x) => x !== w && Math.abs(x.length - w.length) <= 2)).slice(0, 3);
     fb.textContent = ''; next.hidden = true;
@@ -230,7 +231,7 @@ function decodeGame(root) {
         opts.querySelectorAll('button').forEach((x) => { x.disabled = true; if (x.textContent === w) { x.style.background = 'var(--sel)'; x.style.color = 'var(--sel-ink)'; x.style.opacity = '1'; } });
         log('ipa', { game: 'decode', correct: o === w, sounds: soundIds(w) });
         if (o === w) { score++; fb.textContent = '¡Bien leído!'; }
-        else { b.style.textDecoration = 'line-through'; fb.textContent = `“${o}” sería ${transcribe(o)}.`; }
+        else { b.style.textDecoration = 'line-through'; fb.textContent = `“${o}” sería ${ipaFor(o)}.`; }
         next.textContent = idx < round.length - 1 ? 'Siguiente' : 'Ver resultado';
         next.hidden = false;
       };
@@ -300,6 +301,7 @@ function encodeGame(root) {
     fb.replaceChildren(...[
       h('b', { style: `color:${ok ? 'var(--accent)' : 'var(--ink)'}` }, ok ? '¡Perfecto!' : 'Casi. La pronunciación es:'),
       h('span', { class: 'ipa', style: 'font-size:20px' }, transcribe(w)),
+      detailed() ? h('span', { class: 'ipa muted', style: 'font-size:15px' }, `Detallada: ${narrow(transcribe(w))}`) : null,
       !ok && traps.length ? h('span', { class: 'muted small' }, `Revisá: ${[...new Set(traps)].map((t) => { const x = SOUNDS.find((y) => y.s === t); return x ? `[${t}] = ${x.name}` : `[${t}] no se usa en el español porteño`; }).join(' · ')}`) : null].filter(Boolean));
     check.textContent = idx < round.length - 1 ? 'Siguiente' : 'Ver resultado';
   };
@@ -310,7 +312,11 @@ export async function render(main) {
   const tabs = MODES.map(([k, label]) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(k === mode) }, label));
   const body = h('div', { style: 'display:flex;flex-direction:column;gap:12px' });
   tabs.forEach((b, i) => { b.onclick = () => { mode = MODES[i][0]; tabs.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); draw(); }; });
-  main.append(pageHead(`FONÉTICA RIOPLATENSE · ${SOUNDS.length} SONIDOS · ${DIPHTHONGS.length} DIPTONGOS`, 'IPA y pronunciación', h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs)), body);
+  // Guide to the marks (stress, linking, pauses, melody, diacritics), right next to Símbolos.
+  const guide = h('button', { type: 'button', class: 'pill ig-btn', 'aria-haspopup': 'dialog', 'aria-label': 'Suprasegmentales y diacríticos: guía de marcas' },
+    h('span', { class: 'ig-btn-mark', 'aria-hidden': 'true' }, 'ˈa‿t̪'), h('span', { class: 'ig-long' }, 'Suprasegmentales y diacríticos'), h('span', { class: 'ig-short' }, 'Diacríticos'));
+  guide.onclick = () => openIpaGuide(guide);
+  main.append(pageHead(`FONÉTICA RIOPLATENSE · ${SOUNDS.length} SONIDOS · ${DIPHTHONGS.length} DIPTONGOS`, 'IPA y pronunciación', h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Modo', style: 'gap:6px' }, tabs[0], guide, ...tabs.slice(1))), body);
   function draw() {
     body.replaceChildren();
     body.style.maxWidth = wide() && (mode === 'descifrar' || mode === 'escribir') ? '760px' : '';

@@ -5,7 +5,7 @@ import { tappableText, markWord, showWordPanel, sentenceWith } from '../wordpane
 import { florClip } from '../florvoz.js';
 import { useFlor, phoneSay, stopPhone } from '../voz.js';
 import { Player } from '../audio.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { log } from '../progress.js';
 
@@ -63,7 +63,7 @@ export async function render(main) {
   };
   const keep = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Guardar palabras');
   keep.onclick = async () => {
-    for (const [w, gloss] of c.vocab) await db.put('mazo', { front: w, ipa: transcribe(w), back: `${gloss} · ${c.title}`, tag: '#Cultura', created: Date.now() });
+    for (const [w, gloss] of c.vocab) await db.put('mazo', { front: w, ipa: ipaFor(w), back: `${gloss} · ${c.title}`, tag: '#Cultura', created: Date.now() });
     toast(`${c.vocab.length} palabras al Mazo`); keep.disabled = true;
   };
 

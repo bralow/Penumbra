@@ -66,9 +66,12 @@ export function prosodyLine(text, { size = 22 } = {}) {
   return p;
 }
 
-export const pauseLegend = () => h('p', { class: 'muted', style: 'font-size:12px;line-height:1.4' },
-  h('b', { class: 'pros-bar' }, '/'), ' pausa corta · ', h('b', { class: 'pros-bar major' }, '//'), ' pausa larga · ',
-  h('b', { class: 'pros-beat' }, 'sílaba'), ' golpe (acento) · ', h('b', { class: 'pros-nuc' }, 'sílaba'), ' golpe más fuerte del grupo · palabras grises: se pegan a la siguiente');
+export const pauseLegend = () => h('div', { class: 'pros-legend', role: 'note', 'aria-label': 'Leyenda' },
+  h('span', {}, h('b', { class: 'pros-bar' }, '/'), 'pausa corta'),
+  h('span', {}, h('b', { class: 'pros-bar major' }, '//'), 'pausa larga'),
+  h('span', {}, h('b', { class: 'pros-beat' }, 'sí'), 'sílaba acentuada'),
+  h('span', {}, h('b', { class: 'pros-nuc' }, 'sí'), 'golpe fuerte del grupo'),
+  h('span', {}, h('span', { class: 'pros-weak' }, 'de la'), 'grises: átonas, se enlazan con la siguiente'));
 
 // Clause type / prosodic feature of a sentence, for filters.
 const QU = /^[¿¡"«]*\s*(qué|cómo|dónde|cuándo|cuánto|cuánta|cuántos|cuántas|quién|quiénes|cuál|cuáles|por qué|adónde)\b/i;

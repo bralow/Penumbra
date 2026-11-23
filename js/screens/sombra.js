@@ -1,7 +1,7 @@
 import { h, iconEl, toast, LEVELS, shuffle, backHead } from '../ui.js';
 import { db } from '../db.js';
 import { getSettings } from '../settings.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { Player, Recorder, decode, peaks } from '../audio.js';
 import { Waveform, onset, speechEnd } from '../waveform.js';
 import { pitchTrack } from '../pitch.js';
@@ -19,13 +19,23 @@ let focus = (() => { try { return localStorage.getItem(FOCO) || 'todas'; } catch
 const TITLES = { entonacion: 'Entonación', gramatica: 'Gramática', sombra: 'Sombra', charla: 'Charla', escribir: 'Escribir', diario: 'Diario', vos: 'Vos', oido: 'Oído', traba: 'Trabalenguas', elision: 'Elisión', cognados: 'Cognados' };
 export function practiceTabs(active) { return backHead(TITLES[active] || 'Practicar'); }
 
+// Small inline icons for the practice dock.
+const SVG = {
+  loop: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M17 2l3 3-3 3"/><path d="M4 11V9a4 4 0 0 1 4-4h12"/><path d="M7 22l-3-3 3-3"/><path d="M20 13v2a4 4 0 0 1-4 4H4"/></svg>',
+  mix: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>',
+  save: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  wave: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/></svg>',
+  tune: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M3 16c3-8 5-8 7-3s4 5 7-3 3-2 4 0"/></svg>',
+};
+const ic = (k) => h('span', { class: 'sb-ic', html: SVG[k] });
+
 export async function render(main) {
   const settings = getSettings();
   const all = await db.all('clips');
-  const counter = h('span', { class: 'muted', style: 'font-size:14px;font-weight:600' });
+  const counter = h('span', { class: 'sb-count', 'aria-live': 'polite' });
   const prevBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Frase anterior' }, iconEl('prev'));
   const nextBtn = h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Siguiente frase' }, iconEl('next'));
-  main.append(h('div', { class: 'between' }, practiceTabs('sombra'), h('div', { class: 'row', style: 'gap:0' }, prevBtn, counter, nextBtn)));
+  main.append(h('div', { class: 'sb-top' }, practiceTabs('sombra'), h('div', { class: 'sb-pager', role: 'group', 'aria-label': 'Frases' }, prevBtn, counter, nextBtn)));
 
   if (!all.length) {
     prevBtn.disabled = nextBtn.disabled = true;
@@ -40,11 +50,11 @@ export async function render(main) {
   const feat = (id) => FEATURES.find((f) => f.id === id) || FEATURES[0];
   const counts = Object.fromEntries(FEATURES.map((f) => [f.id, all.filter((c) => f.test(c.text)).length]));
   if (!counts[focus]) focus = 'todas';
-  const focusBtns = FEATURES.map((f) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(f.id === focus), disabled: !counts[f.id], style: 'min-height:36px;font-size:12px', title: `${counts[f.id]} frases` },
-    f.label, f.id !== 'todas' ? h('span', { class: 'muted', style: 'font-weight:500;margin-left:4px' }, String(counts[f.id])) : null));
+  const focusBtns = FEATURES.map((f) => h('button', { type: 'button', class: 'sb-chip', 'aria-pressed': String(f.id === focus), disabled: !counts[f.id], title: `${counts[f.id]} frases` },
+    f.label, f.id !== 'todas' ? h('span', { class: 'n' }, String(counts[f.id])) : null));
   focusBtns.forEach((b, i) => { b.onclick = () => { focus = FEATURES[i].id; try { localStorage.setItem(FOCO, focus); } catch { /* ignore */ } session = null; window.dispatchEvent(new Event('cadencia:rerender')); }; });
-  main.append(h('div', { class: 'row wrap', role: 'group', 'aria-label': 'Foco de prosodia', style: 'gap:6px;align-items:center' },
-    h('span', { class: 'kicker', style: 'color:var(--muted);margin-right:2px' }, 'FOCO'), ...focusBtns));
+  main.append(h('div', { class: 'sb-foco' }, h('span', { class: 'sb-label' }, 'FOCO'),
+    h('div', { class: 'sb-chips', role: 'group', 'aria-label': 'Foco de prosodia' }, ...focusBtns)));
 
   // Pick a session of clips near the current level (within the chosen focus).
   const li = LEVELS.indexOf(settings.level);
@@ -56,70 +66,110 @@ export async function render(main) {
   }
   const byId = new Map(all.map((c) => [c.id, c]));
 
-  // --- Sentence card
-  const levelChip = h('span', { class: 'chip solid' });
-  const speakerChip = h('span', { class: 'chip' });
-  const sentence = h('p', { class: 'sentence', lang: 'es-AR' });
-  const ipaLine = h('p', { class: 'ipa' });
-  // Breath groups: / where to pause, the stressed syllables as beats.
-  const pausesBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': String(showPauses()), style: 'min-height:34px;font-size:12px;margin-left:auto' }, 'Pausas y ritmo');
-  const legend = h('div', { hidden: !showPauses() }, pauseLegend());
+  // --- Phrase card: metadata and the Pausas y ritmo switch on top, then the phrase, its IPA and the legend strip.
+  const levelChip = h('span', { class: 'sb-tag strong' });
+  const speakerChip = h('span', { class: 'sb-tag' });
+  const sentence = h('p', { class: 'sentence sb-sentence', lang: 'es-AR' });
+  const ipaLine = h('p', { class: 'ipa sb-ipa-text' });
+  const pausesSw = h('button', { type: 'button', role: 'switch', class: 'switch', 'aria-checked': String(showPauses()), 'aria-label': 'Pausas y ritmo' }, h('span', { class: 'knob' }));
+  const pausesLbl = h('label', { class: 'sb-switch' }, h('span', {}, 'Pausas y ritmo'), pausesSw);
+  const legend = h('div', { class: 'sb-legend', hidden: !showPauses() }, pauseLegend());
   const paintSentence = () => { if (!current) return; sentence.replaceChildren(showPauses() ? prosodyLine(current.text, { size: 23 }) : current.text); legend.hidden = !showPauses(); };
-  pausesBtn.onclick = () => { setShowPauses(!showPauses()); pausesBtn.setAttribute('aria-pressed', String(showPauses())); paintSentence(); };
-  main.append(h('section', { class: 'card' }, h('div', { class: 'row', style: 'gap:6px' }, levelChip, speakerChip, pausesBtn), sentence, ipaLine, legend));
+  pausesSw.onclick = () => { setShowPauses(!showPauses()); pausesSw.setAttribute('aria-checked', String(showPauses())); paintSentence(); };
+  main.append(h('section', { class: 'sb-card sb-phrase' },
+    h('div', { class: 'sb-meta' }, h('div', { class: 'sb-tags' }, levelChip, speakerChip), pausesLbl),
+    sentence,
+    h('div', { class: 'sb-ipa' }, h('span', { class: 'sb-label' }, 'IPA RIOPLATENSE'), ipaLine),
+    legend));
 
-  // --- Waveform card
-  const canvas = h('canvas', { class: 'wave', role: 'img', 'aria-label': 'Ondas de la voz nativa y la tuya' });
-  const overlayBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': 'false', style: 'min-height:40px' }, 'Superponer');
-  const waveTab = h('button', { type: 'button', class: 'pill', style: 'min-height:38px;border:none', 'aria-pressed': String(viewMode === 'wave') }, 'Ondas');
-  const pitchTab = h('button', { type: 'button', class: 'pill', style: 'min-height:38px;border:none', 'aria-pressed': String(viewMode === 'pitch') }, 'Melodía');
-  const pitchHint = h('p', { class: 'muted small', hidden: viewMode !== 'pitch' }, 'La línea muestra cómo sube y baja la voz. Cada voz se mide desde su propio tono medio, así se comparan aunque sean de hombre y mujer.');
+  // --- Compare card: Ondas / Melodía, Superponer, the canvas and the alignment drawer.
+  const canvas = h('canvas', { class: 'wave sb-canvas', 'data-labels': 'on', role: 'img', 'aria-label': 'Ondas de la voz nativa y la tuya' });
+  const waveTab = h('button', { type: 'button', 'aria-pressed': String(viewMode === 'wave') }, ic('wave'), 'Ondas');
+  const pitchTab = h('button', { type: 'button', 'aria-pressed': String(viewMode === 'pitch') }, ic('tune'), 'Melodía');
+  const overlaySw = h('button', { type: 'button', role: 'switch', class: 'switch', 'aria-checked': 'false', 'aria-label': 'Superponer' }, h('span', { class: 'knob' }));
+  const overlayLbl = h('label', { class: 'sb-switch' }, h('span', {}, 'Superponer'), overlaySw);
+  const stateLine = h('p', { class: 'sb-state', 'aria-live': 'polite' });
+  const userKey = h('span', { class: 'sb-key user' }, h('i'), 'Vos');
   const timeEnd = h('span');
-  main.append(h('section', { class: 'card', 'aria-label': 'Ondas de audio', style: 'gap:8px;padding:14px 16px' },
-    h('div', { class: 'between' }, h('div', { class: 'seg', role: 'group', 'aria-label': 'Vista' }, waveTab, pitchTab), overlayBtn),
-    h('div', { class: 'legend' }, h('span', {}, h('i', { style: 'background:var(--native)' }), 'Nativa'), h('span', {}, h('i', { style: 'background:var(--user)' }), 'Vos')),
-    canvas, pitchHint,
-    h('div', { class: 'between muted', style: 'font-size:11px' }, h('span', {}, '0,0 s'), timeEnd)));
+  const canvasWrap = h('div', { class: 'sb-canvas-wrap' }, canvas);
+
+  // Alignment drawer (only with a recording): desfase readout, fine nudge, quick actions.
+  const alignStart = h('button', { type: 'button', class: 'sb-btn' }, 'Alinear inicio');
+  const matchLen = h('button', { type: 'button', class: 'sb-btn', 'aria-pressed': 'false' }, 'Igualar duración');
+  const resetAlign = h('button', { type: 'button', class: 'sb-btn' }, 'Reiniciar');
+  const syllBtn = h('button', { type: 'button', class: 'sb-btn', 'aria-pressed': 'false' }, 'Alinear sílabas');
+  const rhythmInfo = h('div', { class: 'small', hidden: true, style: 'display:flex;flex-direction:column;gap:4px' });
+  const alignInfo = h('span', { class: 'sb-offset', 'aria-live': 'polite' });
+  const nudgeL = h('button', { type: 'button', class: 'sb-nudge', 'aria-label': 'Mover tu voz 50 milisegundos antes' }, '−');
+  const nudgeR = h('button', { type: 'button', class: 'sb-nudge', 'aria-label': 'Mover tu voz 50 milisegundos después' }, '+');
+  const slider = h('input', { type: 'range', min: '-1.5', max: '1.5', step: '0.01', value: '0', 'aria-label': 'Desfase de tu voz', class: 'sb-range' });
+  const nudgeRow = h('div', { class: 'sb-nudge-row' }, nudgeL, slider, nudgeR);
+  const dragHint = h('p', { class: 'muted small' }, 'Arrastrá tu onda en el gráfico o usá la barra para moverla en el tiempo.');
+  const drawerBody = h('div', { class: 'sb-drawer-body' }, nudgeRow, h('div', { class: 'sb-actions' }, syllBtn, alignStart, matchLen, resetAlign), rhythmInfo, dragHint);
+  const drawerToggle = h('button', { type: 'button', class: 'sb-drawer-head', 'aria-expanded': 'true' },
+    h('span', { class: 'sb-drawer-title' }, 'Alinear tu voz'), alignInfo, h('span', { class: 'sb-chev', 'aria-hidden': 'true' }, '⌄'));
+  const drawer = h('div', { class: 'sb-drawer', hidden: true }, drawerToggle, drawerBody);
+  drawerToggle.onclick = () => { const open = drawerToggle.getAttribute('aria-expanded') !== 'true'; drawerToggle.setAttribute('aria-expanded', String(open)); drawer.classList.toggle('closed', !open); };
+
+  main.append(h('section', { class: 'sb-card sb-compare', 'aria-label': 'Comparar voces' },
+    h('div', { class: 'sb-compare-head' }, h('div', { class: 'sb-seg', role: 'group', 'aria-label': 'Vista' }, waveTab, pitchTab), overlayLbl),
+    h('div', { class: 'sb-compare-sub' }, h('div', { class: 'sb-keys' }, h('span', { class: 'sb-key native' }, h('i'), 'Nativa'), userKey), stateLine),
+    canvasWrap,
+    h('div', { class: 'sb-axis' }, h('span', {}, '0,0 s'), timeEnd),
+    drawer));
+
   const wave = new Waveform(canvas);
   wave.mode = viewMode;
+  const STATES = {
+    'wave-solo': 'Onda nativa. Grabá tu voz para comparar.',
+    'wave-stack': 'Arriba la nativa, abajo vos.',
+    'wave-over': 'Las dos ondas superpuestas: alineá tu voz con la nativa.',
+    'wave-syl': 'Superpuestas, sílaba por sílaba.',
+    'pitch-solo': 'Melodía nativa: cómo sube y baja la voz.',
+    'pitch-both': 'Las dos melodías, cada una desde su tono medio (sirve aunque una voz sea más grave).',
+  };
+  function paintState() {
+    const hasUser = !!wave.user;
+    const key = viewMode === 'pitch' ? (hasUser ? 'pitch-both' : 'pitch-solo') : !hasUser ? 'wave-solo' : wave.warped() && wave.overlay ? 'wave-syl' : wave.overlay ? 'wave-over' : 'wave-stack';
+    stateLine.textContent = STATES[key];
+    canvasWrap.dataset.state = key;
+    userKey.classList.toggle('off', !hasUser);
+    overlaySw.disabled = viewMode === 'pitch' || !hasUser;
+    overlayLbl.classList.toggle('disabled', overlaySw.disabled);
+    overlaySw.setAttribute('aria-checked', String(wave.overlay && viewMode !== 'pitch'));
+  }
   function setView(m) {
     viewMode = m; wave.mode = m;
     waveTab.setAttribute('aria-pressed', String(m === 'wave'));
     pitchTab.setAttribute('aria-pressed', String(m === 'pitch'));
-    overlayBtn.hidden = m === 'pitch';
-    pitchHint.hidden = m !== 'pitch';
     canvas.setAttribute('aria-label', m === 'pitch' ? 'Melodía de la voz nativa y la tuya' : 'Ondas de la voz nativa y la tuya');
     wave.draw(); showAlign();
   }
   waveTab.onclick = () => setView('wave');
   pitchTab.onclick = () => setView('pitch');
+  function setOverlay(on) {
+    wave.overlay = on;
+    wave.draw(); showAlign();
+  }
+  overlaySw.onclick = () => setOverlay(!wave.overlay);
+  // Alignment only makes sense on top of each other: the drawer's actions switch the waves to Superponer.
+  const needOverlay = () => { if (viewMode === 'wave' && !wave.overlay) setOverlay(true); };
 
-  // --- Alignment tools (overlay view, once there's a recording)
-  const alignStart = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Alinear inicio');
-  const matchLen = h('button', { type: 'button', class: 'pill', 'aria-pressed': 'false', style: 'min-height:40px' }, 'Igualar duración');
-  const resetAlign = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Reiniciar');
-  const syllBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': 'false', style: 'min-height:40px' }, 'Alinear sílabas');
-  const rhythmInfo = h('div', { class: 'small', hidden: true, style: 'display:flex;flex-direction:column;gap:4px' });
-  const alignInfo = h('span', { class: 'muted small', 'aria-live': 'polite' });
-  const dragHint = h('span', { class: 'muted small' }, 'Arrastrá tu onda (naranja) para moverla en el tiempo.');
-  const alignRow = h('div', { class: 'card', hidden: true, style: 'gap:8px;padding:12px 14px' },
-    h('div', { class: 'between' }, h('span', { class: 'small', style: 'font-weight:700' }, 'Alinear tu voz'), alignInfo),
-    h('div', { class: 'row wrap', style: 'gap:6px' }, syllBtn, alignStart, matchLen, resetAlign),
-    rhythmInfo,
-    dragHint);
-  main.append(alignRow);
   const fmtSec = (x) => (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2).replace('.', ',') + ' s';
   function showAlign() {
-    alignRow.hidden = !(wave.aligned() && wave.user);
+    drawer.hidden = !wave.user;
     const warped = wave.warped();
     alignInfo.textContent = !wave.user ? '' : warped ? 'sílaba por sílaba' : `desfase ${fmtSec(wave.offset)}${wave.scale !== 1 ? ` · ×${wave.scale.toFixed(2).replace('.', ',')}` : ''}`;
-    [alignStart, matchLen, resetAlign, dragHint].forEach((el) => { el.hidden = warped; });
+    [alignStart, matchLen, resetAlign, dragHint, nudgeRow].forEach((el) => { el.hidden = warped; });
+    slider.value = String(Math.max(-1.5, Math.min(1.5, wave.offset)));
     rhythmInfo.hidden = !warped;
+    paintState();
   }
   let nativeBuf = null, userBuf = null;
   function syllables(on) {
     syllBtn.setAttribute('aria-pressed', String(on));
     wave.warpOn = on;
+    if (on) needOverlay();
     if (on && !wave.warp && nativeBuf && userBuf) {
       wave.warp = alignTakes(nativeBuf, userBuf, onset(wave.native), speechEnd(wave.native), onset(wave.user), speechEnd(wave.user));
       if (wave.warp) log('sombra', { rhythm: wave.warp.similarity });
@@ -152,30 +202,32 @@ export async function render(main) {
     } else wave.scale = 1;
     autoAlignStart();
   }
-  alignStart.onclick = autoAlignStart;
-  matchLen.onclick = () => matchLength(matchLen.getAttribute('aria-pressed') !== 'true');
-  resetAlign.onclick = () => { wave.offset = 0; wave.scale = 1; matchLen.setAttribute('aria-pressed', 'false'); wave.draw(); showAlign(); };
+  const nudge = (d) => { needOverlay(); wave.offset = Math.round((wave.offset + d) * 100) / 100; wave.draw(); showAlign(); };
+  nudgeL.onclick = () => nudge(-0.05);
+  nudgeR.onclick = () => nudge(0.05);
+  slider.oninput = () => { needOverlay(); wave.offset = parseFloat(slider.value); wave.draw(); showAlign(); };
+  alignStart.onclick = () => { needOverlay(); autoAlignStart(); };
+  matchLen.onclick = () => { needOverlay(); matchLength(matchLen.getAttribute('aria-pressed') !== 'true'); };
+  resetAlign.onclick = () => { wave.offset = 0; wave.scale = 1; matchLen.setAttribute('aria-pressed', 'false'); if (syllBtn.getAttribute('aria-pressed') === 'true') syllables(false); wave.draw(); showAlign(); };
 
-  // --- Speed
+  // --- Practice dock: speed and loop, then Escuchar / Grabar / Mi voz, then Mezcla 50/50 and Guardar.
   const speeds = ['0.5', '0.75', '1'];
   let speed = speeds.includes(settings.speed) ? settings.speed : '1';
-  const speedBtns = speeds.map((v) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(v === speed), onclick: () => setSpeed(v) }, v === '1' ? '1.0x' : v + 'x'));
-  main.append(h('div', { class: 'between' }, h('span', { class: 'muted small', style: 'font-weight:600' }, 'Velocidad'), h('div', { class: 'row', role: 'group', 'aria-label': 'Velocidad', style: 'gap:6px' }, speedBtns)));
-
-  // --- Controls
+  const speedBtns = speeds.map((v) => h('button', { type: 'button', 'aria-pressed': String(v === speed), onclick: () => setSpeed(v) }, v === '1' ? '1.0x' : v + 'x'));
+  const loopBtn = h('button', { type: 'button', class: 'sb-btn ghost', 'aria-pressed': 'false' }, ic('loop'), 'Bucle');
   const playBtn = h('button', { type: 'button', class: 'round native', 'aria-label': 'Escuchar la nativa' }, iconEl('play'));
   const recBtn = h('button', { type: 'button', class: 'round rec', 'aria-label': 'Grabar tu voz' }, iconEl('mic'));
-  const recLabel = h('span', { style: 'font-weight:700;color:var(--accent)' }, 'Grabar');
+  const recLabel = h('span', { class: 'rec-label' }, 'Grabar');
   const mineBtn = h('button', { type: 'button', class: 'round user', 'aria-label': 'Escuchar mi voz', disabled: true }, iconEl('play'));
-  main.append(h('div', { class: 'controls' },
-    h('div', { class: 'control' }, playBtn, h('span', {}, 'Escuchar')),
-    h('div', { class: 'control' }, recBtn, recLabel),
-    h('div', { class: 'control' }, mineBtn, h('span', {}, 'Mi voz'))));
-
-  const loopBtn = h('button', { type: 'button', class: 'pill', 'aria-pressed': 'false' }, 'Bucle');
-  const mixBtn = h('button', { type: 'button', class: 'pill', disabled: true }, 'Mezcla 50/50');
-  const saveBtn = h('button', { type: 'button', class: 'pill' }, 'Guardar');
-  main.append(h('div', { class: 'row', style: 'justify-content:center' }, loopBtn, mixBtn, saveBtn));
+  const mixBtn = h('button', { type: 'button', class: 'sb-btn ghost', disabled: true }, ic('mix'), 'Mezcla 50/50');
+  const saveBtn = h('button', { type: 'button', class: 'sb-btn ghost', title: 'Guardar la frase en Penumbra' }, ic('save'), 'Guardar');
+  main.append(h('div', { class: 'sb-dock', role: 'toolbar', 'aria-label': 'Práctica' },
+    h('div', { class: 'sb-dock-side' }, h('div', { class: 'sb-seg small', role: 'group', 'aria-label': 'Velocidad' }, ...speedBtns), loopBtn),
+    h('div', { class: 'sb-dock-main' },
+      h('div', { class: 'control' }, playBtn, h('span', {}, 'Escuchar')),
+      h('div', { class: 'control' }, recBtn, recLabel),
+      h('div', { class: 'control' }, mineBtn, h('span', {}, 'Mi voz'))),
+    h('div', { class: 'sb-dock-side end' }, mixBtn, saveBtn)));
 
   // --- State
   const native = new Player(), mine = new Player(), recorder = new Recorder();
@@ -220,8 +272,9 @@ export async function render(main) {
     prevBtn.disabled = session.index === 0;
     levelChip.textContent = current.level;
     speakerChip.textContent = current.speaker ? `OpenSLR · ${current.speaker}` : 'OpenSLR';
+    saveBtn.classList.remove('done'); saveBtn.lastChild.textContent = 'Guardar';
     paintSentence();
-    ipaLine.textContent = transcribe(current.text);
+    ipaLine.textContent = ipaFor(current.text);
     mine.load(null); mineBtn.disabled = true; mixBtn.disabled = true;
     wave.offset = 0; wave.scale = 1; matchLen.setAttribute('aria-pressed', 'false');
     wave.nativePitch = null; wave.userPitch = null; wave.warp = null; userBuf = null; nativeBuf = null;
@@ -291,15 +344,11 @@ export async function render(main) {
     loopBtn.setAttribute('aria-pressed', String(on));
     native.loop = on;
   };
-  overlayBtn.onclick = () => {
-    wave.overlay = !wave.overlay;
-    overlayBtn.setAttribute('aria-pressed', String(wave.overlay));
-    wave.draw(); showAlign();
-  };
   saveBtn.onclick = async () => {
     if (!current) return;
-    await db.put('mazo', { front: current.text, ipa: transcribe(current.text), back: '', tag: '#Sombra', audio: nativeBlob || undefined, created: Date.now() });
+    await db.put('mazo', { front: current.text, ipa: ipaFor(current.text), back: '', tag: '#Sombra', audio: nativeBlob || undefined, created: Date.now() });
     toast('Guardado en Penumbra');
+    saveBtn.classList.add('done'); saveBtn.lastChild.textContent = 'Guardada';
   };
   prevBtn.onclick = () => { if (session.index > 0) { session.index--; loadClip(); } };
   nextBtn.onclick = () => {

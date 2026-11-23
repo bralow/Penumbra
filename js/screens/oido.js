@@ -1,7 +1,7 @@
 import { h, iconEl, toast, shuffle } from '../ui.js';
 import { practiceTabs } from './sombra.js';
 import { CONTRASTS } from '../pairsdata.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { Player } from '../audio.js';
 import { log } from '../progress.js';
@@ -137,7 +137,7 @@ export async function render(main) {
     const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, '+ Penumbra');
     save.onclick = async () => {
       const other = q.pair.find((w) => w !== q.word);
-      await db.put('mazo', { front: q.clip.text, ipa: transcribe(q.clip.text), back: `${q.word} ${transcribe(q.word)} · no ${other} ${transcribe(other)}`, tag: '#Oído', audio: (await db.audioFor(q.clip.id)) || undefined, created: Date.now() });
+      await db.put('mazo', { front: q.clip.text, ipa: ipaFor(q.clip.text), back: `${q.word} ${ipaFor(q.word)} · no ${other} ${ipaFor(other)}`, tag: '#Oído', audio: (await db.audioFor(q.clip.id)) || undefined, created: Date.now() });
       toast('Guardado en Penumbra');
     };
     const next = h('button', { type: 'button', class: 'btn', style: 'align-self:stretch' }, idx < round.length - 1 ? 'Siguiente' : 'Ver resultado');
@@ -146,7 +146,7 @@ export async function render(main) {
       h('span', { style: `font-weight:700;font-size:16px;color:${ok ? 'var(--gold-text)' : '#F2A989'}` }, ok ? '¡Bien escuchado!' : `Era “${q.word}”.`),
       sentence,
       h('div', { style: 'display:flex;flex-direction:column;gap:2px;font-size:14px' },
-        ...q.pair.map((w) => h('span', {}, h('b', {}, w), ' ', h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, transcribe(w))))),
+        ...q.pair.map((w) => h('span', {}, h('b', {}, w), ' ', h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, ipaFor(w))))),
       h('div', { class: 'row wrap' }, h('button', { type: 'button', class: 'pill', style: 'background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)', onclick: play }, 'Escuchar otra vez'), save),
       next);
     feedback.hidden = false;

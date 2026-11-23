@@ -1,6 +1,6 @@
 import { applyTheme } from './settings.js';
 
-export const APP_VERSION = '2026.11.20-a (entonación, gramática y más práctica)';
+export const APP_VERSION = '2026.11.23-a (Sombra nueva e IPA porteña coloquial)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 

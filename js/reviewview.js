@@ -6,7 +6,7 @@ import { geminiSpeech } from './gemini.js';
 import { unlockAudio, playPcm, stopPcm } from './pcm.js';
 import { florVoice } from './florvoz.js';
 import { useFlor, phoneSay, stopPhone } from './voz.js';
-import { transcribe } from './ipa.js';
+import { ipaFor } from './ipa.js';
 import { db } from './db.js';
 
 const lensOf = (id) => LENSES.find((l) => l.id === id) || { id, label: id, color: 'var(--muted)' };
@@ -26,7 +26,7 @@ export function changeCard(c, tag) {
   const l = lensOf(c.lens);
   const keep = h('button', { type: 'button', class: 'pill', style: 'min-height:32px;font-size:11px;align-self:flex-start' }, 'Guardar');
   keep.onclick = async () => {
-    await db.put('mazo', { front: c.better, ipa: transcribe(c.better), back: `${c.original ? `En vez de «${c.original}». ` : ''}${c.why || ''}`.trim(), tag, created: Date.now() });
+    await db.put('mazo', { front: c.better, ipa: ipaFor(c.better), back: `${c.original ? `En vez de «${c.original}». ` : ''}${c.why || ''}`.trim(), tag, created: Date.now() });
     toast('Guardado en Penumbra'); keep.disabled = true; keep.textContent = '✓ Guardado';
   };
   return h('div', { class: 'card', style: 'gap:4px;padding:10px 12px' },
@@ -68,7 +68,7 @@ export function reviewView(text, r, opts = {}) {
   };
   keepAll.onclick = async () => {
     const t = target();
-    await db.put('mazo', { front: t, ipa: transcribe(t), back: `Mi versión: ${text}`, tag, created: Date.now() });
+    await db.put('mazo', { front: t, ipa: ipaFor(t), back: `Mi versión: ${text}`, tag, created: Date.now() });
     toast('Guardado en Penumbra');
   };
   if (reuse) reuse.onclick = () => opts.reuse(r.corrected);

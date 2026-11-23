@@ -4,7 +4,7 @@
 import { h, toast } from './ui.js';
 import { db } from './db.js';
 import { decks, TYPES, fillMeaning } from './penumbra.js';
-import { transcribe } from './ipa.js';
+import { ipaFor } from './ipa.js';
 import { similar, saveNote, proofread } from './cardtools.js';
 import { openImageEditor } from './imgedit.js';
 import { openAudioEditor, openMarkerEditor } from './audedit.js';
@@ -78,7 +78,7 @@ export async function buildEditor(el, { note, deckId, onDone }) {
   function paintIpa() {
     ipaInput.hidden = ipaMode === 'off';
     ipaInput.readOnly = ipaMode === 'auto';
-    if (ipaMode === 'auto') ipaInput.value = front.value.trim() ? transcribe(front.value) : '';
+    if (ipaMode === 'auto') ipaInput.value = front.value.trim() ? ipaFor(front.value) : '';
   }
   ipaInput.value = c0.ipa || '';
   ipaInput.addEventListener('input', () => { dirty = true; });

@@ -2,7 +2,7 @@
 // exercises with an explanation after each answer; your best score per module is kept.
 import { h, toast, shuffle, backHead } from '../ui.js';
 import { db } from '../db.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { log } from '../progress.js';
 import { checkTyped } from '../penumbra.js';
 import { geminiReady } from '../gemini.js';
@@ -72,7 +72,7 @@ function lesson(main, mod) {
       const answer = it.a[0];
       const full = it.t === 'fill' ? filled(it, ok ? given : answer).replace(/^./, (c) => c.toUpperCase()) : answer.replace(/^./, (c) => c.toUpperCase());
       const save = h('button', { type: 'button', class: 'pill' }, '+ Penumbra');
-      save.onclick = async () => { await db.put('mazo', { front: full, ipa: transcribe(full), back: it.exp, tag: '#Gramática', created: Date.now() }); toast('Guardada en Penumbra'); save.disabled = true; };
+      save.onclick = async () => { await db.put('mazo', { front: full, ipa: ipaFor(full), back: it.exp, tag: '#Gramática', created: Date.now() }); toast('Guardada en Penumbra'); save.disabled = true; };
       fb.replaceChildren(
         h('b', { style: `color:${ok ? 'var(--accent)' : 'var(--gold-text)'}` }, ok ? (accentsOnly ? '¡Bien! Ojo con la tilde.' : '¡Bien!') : `Era: ${answer}`),
         h('p', { style: 'font-size:17px;font-family:var(--display);font-weight:600', lang: 'es-AR' }, full),
@@ -133,7 +133,7 @@ function lesson(main, mod) {
       log('gramatica', { mod: mod.id, correct: ok, prompt: true });
       const keep = ai && ai.corrected ? ai.corrected : text;
       const save = h('button', { type: 'button', class: 'pill' }, '+ Penumbra');
-      save.onclick = async () => { await db.put('mazo', { front: keep, ipa: transcribe(keep), back: `${mod.title}: ${it.q}`, tag: '#Gramática', created: Date.now() }); toast('Guardada en Penumbra'); save.disabled = true; };
+      save.onclick = async () => { await db.put('mazo', { front: keep, ipa: ipaFor(keep), back: `${mod.title}: ${it.q}`, tag: '#Gramática', created: Date.now() }); toast('Guardada en Penumbra'); save.disabled = true; };
       fb.replaceChildren(
         h('b', { style: `color:${ok ? 'var(--accent)' : 'var(--gold-text)'}` }, ok ? '¡Bien!' : ai ? 'Casi' : 'Revisá la consigna'),
         ai && ai.corrected ? h('p', { style: 'font-size:17px;font-family:var(--display);font-weight:600' }, ai.corrected) : null,

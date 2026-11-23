@@ -6,7 +6,7 @@ import { importCard } from './podcast.js';
 import { db } from '../db.js';
 import { log } from '../progress.js';
 import { toast } from '../ui.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 
 const PREF = 'cadencia.canciones';
 const prefs = () => { try { return { mode: 'todas', ...JSON.parse(localStorage.getItem(PREF) || '{}') }; } catch { return { mode: 'todas' }; } };
@@ -92,7 +92,7 @@ export async function render(main) {
     const s = songs[cur];
     const ln = s && s.lines && s.lines[Math.max(0, curLine)];
     if (!ln) return;
-    await db.put('mazo', { front: ln.t, ipa: transcribe(ln.t), back: `${s.show} · ${s.title}`, tag: '#Canciones', created: Date.now(),
+    await db.put('mazo', { front: ln.t, ipa: ipaFor(ln.t), back: `${s.show} · ${s.title}`, tag: '#Canciones', created: Date.now(),
       source: { kind: 'song', id: s.id, s: ln.s, e: ln.e, label: `${s.show} · ${s.title}` } });
     toast('Guardado en Penumbra');
   };

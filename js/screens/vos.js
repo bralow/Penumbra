@@ -1,7 +1,7 @@
 import { h, iconEl, toast, shuffle } from '../ui.js';
 import { practiceTabs } from './sombra.js';
 import { questionsFor, noteFor } from '../vosdata.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { log } from '../progress.js';
 
@@ -81,14 +81,14 @@ export async function render(main) {
     const filled = q.sentence.replace('___', q.answer).replace(/^./, (c) => c.toUpperCase());
     const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;margin-top:4px;background:transparent;color:var(--hero-ink);border-color:var(--hero-muted)' }, 'Guardar en Mazo');
     save.onclick = async () => {
-      await db.put('mazo', { front: filled, ipa: transcribe(filled), back: `${q.verb.inf} (${q.verb.en}): vos ${q.answer} · ${q.tuForm}`, tag: '#Vos', created: Date.now() });
+      await db.put('mazo', { front: filled, ipa: ipaFor(filled), back: `${q.verb.inf} (${q.verb.en}): vos ${q.answer} · ${q.tuForm}`, tag: '#Vos', created: Date.now() });
       toast('Guardado en Penumbra');
     };
     feedback.replaceChildren(
       h('div', { class: 'row', style: 'gap:8px;flex-wrap:wrap' },
         h('span', { style: `font-weight:700;font-size:16px;color:${ok ? 'var(--gold-text)' : near ? 'var(--gold-text)' : '#F2A989'}` }, ok ? '¡Bien!' : near ? 'Casi: revisá la tilde.' : 'No exactamente.'),
         h('span', { style: 'font-weight:700' }, q.answer),
-        h('span', { class: 'ipa', style: 'color:var(--hero-muted)' }, transcribe(q.answer))),
+        h('span', { class: 'ipa', style: 'color:var(--hero-muted)' }, ipaFor(q.answer))),
       h('p', { style: 'font-size:14px;line-height:1.45' }, noteFor(q.mode, q.verb, q.answer)),
       h('p', { style: 'font-size:14px;font-style:italic' }, filled),
       save);

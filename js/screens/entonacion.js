@@ -2,7 +2,7 @@
 // when there are some, otherwise the Argentine voice), then say the sentence yourself and compare melodies.
 import { h, iconEl, toast, shuffle, backHead } from '../ui.js';
 import { db } from '../db.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { Player, Recorder, decode } from '../audio.js';
 import { pitchTrack } from '../pitch.js';
 import { log } from '../progress.js';
@@ -88,7 +88,7 @@ function practice(main) {
     h('div', { class: 'between' }, h('span', { class: 'kicker' }, tune.title.toUpperCase()), h('div', { class: 'row', style: 'gap:0' }, prev, counter, next)),
     h('p', { class: 'sentence', lang: 'es-AR' }, item.focus !== undefined ? focusText(item.text, item.focus) : item.text),
     item.note ? h('p', { class: 'small', style: 'color:var(--gold-text)' }, `(${item.note})`) : null,
-    h('p', { class: 'ipa' }, transcribe(item.text)),
+    h('p', { class: 'ipa' }, ipaFor(item.text)),
     sketch(item.text, tune.shape, item.focus),
     h('p', { class: 'muted small', style: 'line-height:1.45' }, tune.how)));
 
@@ -126,7 +126,7 @@ function practice(main) {
   };
   mineBtn.onclick = () => { model.pause(); mine.play(); };
   save.onclick = async () => {
-    await db.put('mazo', { front: item.text, ipa: transcribe(item.text), back: `${tune.title}${item.note ? ` (${item.note})` : ''}: ${tune.shape === 'rise' ? 'la voz sube al final ↗' : tune.shape === 'fall' ? 'la voz baja al final ↘' : 'pico en la palabra destacada'}`, tag: '#Entonación', audio: modelBlob || undefined, created: Date.now() });
+    await db.put('mazo', { front: item.text, ipa: ipaFor(item.text), back: `${tune.title}${item.note ? ` (${item.note})` : ''}: ${tune.shape === 'rise' ? 'la voz sube al final ↗' : tune.shape === 'fall' ? 'la voz baja al final ↘' : 'pico en la palabra destacada'}`, tag: '#Entonación', audio: modelBlob || undefined, created: Date.now() });
     toast('Guardada en Penumbra');
   };
 
@@ -204,7 +204,7 @@ function quiz(main, clips) {
     opts.querySelectorAll('button').forEach((b) => { b.disabled = true; if (b.textContent === TYPE_NAMES[q.kind]) { b.style.background = 'var(--sel)'; b.style.color = 'var(--sel-ink)'; b.style.opacity = '1'; } else if (b === btn) b.style.textDecoration = 'line-through'; });
     const shape = q.kind === 'qu' || q.kind === 'decl' || q.kind === 'excl' ? 'fall' : 'rise';
     const save = h('button', { type: 'button', class: 'pill' }, '+ Penumbra');
-    save.onclick = async () => { await db.put('mazo', { front: q.text, ipa: transcribe(q.text), back: `${TYPE_NAMES[q.kind]}`, tag: '#Entonación', audio: q.clip ? (await db.audioFor(q.clip)) || undefined : undefined, created: Date.now() }); toast('Guardada en Penumbra'); };
+    save.onclick = async () => { await db.put('mazo', { front: q.text, ipa: ipaFor(q.text), back: `${TYPE_NAMES[q.kind]}`, tag: '#Entonación', audio: q.clip ? (await db.audioFor(q.clip)) || undefined : undefined, created: Date.now() }); toast('Guardada en Penumbra'); };
     const next = h('button', { type: 'button', class: 'btn' }, qi < round.length - 1 ? 'Siguiente' : 'Ver resultado');
     next.onclick = () => { if (qi < round.length - 1) { qi++; show(); } else finish(); };
     fb.replaceChildren(h('b', { style: `color:${ok ? 'var(--accent)' : 'var(--gold-text)'}` }, ok ? '¡Bien escuchado!' : `Era: ${TYPE_NAMES[q.kind]}`),

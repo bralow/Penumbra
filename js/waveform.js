@@ -5,8 +5,9 @@
 
 import { warpTime, FRAME } from './dtw.js';
 
-function cssVar(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+// Colours come from the canvas itself, so a screen can restyle its waveforms with CSS variables.
+function cssVar(name, el = document.documentElement) {
+  return getComputedStyle(el).getPropertyValue(name).trim();
 }
 
 // Time (seconds) where speech ends: last bucket louder than `threshold`.
@@ -109,7 +110,9 @@ export class Waveform {
 
     const total = this.axis();
     const pxPerSec = w / total;
-    const nColor = cssVar('--native'), uColor = cssVar('--user'), grid = cssVar('--line'), muted = cssVar('--muted');
+    const v = (n) => cssVar(n, c);
+    const nColor = v('--native'), uColor = v('--user'), grid = v('--line'), muted = v('--muted'), lane = v('--wave-lane');
+    const labels = c.dataset.labels === 'on';
     const rows = this.overlay ? [{ y: 0, h: hgt }] : [{ y: 0, h: hgt / 2 - 3 }, { y: hgt / 2 + 3, h: hgt / 2 - 3 }];
 
     for (let t = 0.5; t < total; t += 0.5) {
@@ -120,13 +123,17 @@ export class Waveform {
     }
     g.globalAlpha = 1;
     if (this.mode === 'pitch') { this.drawPitch(g, w, hgt, pxPerSec, nColor, uColor, grid, muted); this.drawPlayhead(g, w, hgt, pxPerSec); return; }
-    if (!this.overlay) { g.fillStyle = grid; g.fillRect(0, hgt / 2 - 0.5, w, 1); }
+    if (!this.overlay) {
+      if (lane) { g.fillStyle = lane; rows.forEach((r) => { g.beginPath(); g.roundRect ? g.roundRect(0, r.y, w, r.h, 10) : g.rect(0, r.y, w, r.h); g.fill(); }); }
+      else { g.fillStyle = grid; g.fillRect(0, hgt / 2 - 0.5, w, 1); }
+    }
 
     const drawTrack = (track, row, color, alpha, startSec, scale) => {
       const mid = row.y + row.h / 2, amp = row.h / 2 - 2;
       if (!track) {
-        g.fillStyle = muted; g.globalAlpha = 0.35;
-        g.fillRect(0, mid - 0.5, w, 1);
+        g.strokeStyle = muted; g.globalAlpha = 0.45; g.lineWidth = 1;
+        g.setLineDash([4, 5]); g.beginPath(); g.moveTo(0, mid + 0.5); g.lineTo(w, mid + 0.5); g.stroke(); g.setLineDash([]);
+        if (labels && row === rows[1]) { g.globalAlpha = 0.8; g.fillStyle = muted; g.font = '600 12px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText('Tu voz aparece acá cuando grabes', w / 2, mid - 8); g.textAlign = 'left'; }
         g.globalAlpha = 1;
         return;
       }
@@ -163,6 +170,16 @@ export class Waveform {
     } else {
       drawTrack(this.native, rows[0], nColor, 1, 0, 1);
       drawTrack(this.user, rows[1], uColor, 1, 0, 1);
+      if (labels) {
+        g.font = '700 10px system-ui, sans-serif';
+        [['NATIVA', rows[0], nColor], ['VOS', rows[1], uColor]].forEach(([t, r, col]) => {
+          const tw = g.measureText(t).width + 12;
+          g.globalAlpha = 0.92; g.fillStyle = lane || cssVar('--surface', c);
+          g.beginPath(); if (g.roundRect) g.roundRect(6, r.y + 5, tw, 17, 6); else g.rect(6, r.y + 5, tw, 17); g.fill();
+          g.globalAlpha = 1; g.fillStyle = col; g.fillText(t, 12, r.y + 17);
+        });
+        g.globalAlpha = 1;
+      }
     }
 
     this.drawPlayhead(g, w, hgt, pxPerSec);
@@ -197,7 +214,7 @@ export class Waveform {
 
   // Strip along the bottom: orange where you were slower than your average, blue where faster.
   drawRhythm(g, w, hgt, pxPerSec) {
-    const al = this.warp, slow = cssVar('--user'), fast = cssVar('--native-fast') || '#4A86C5';
+    const al = this.warp, slow = cssVar('--user', this.canvas), fast = cssVar('--native-fast', this.canvas) || '#4A86C5';
     for (let k = 0; k < al.ratio.length; k++) {
       const r = al.ratio[k];
       if (r > 0.75 && r < 1.33) continue;
@@ -212,7 +229,7 @@ export class Waveform {
   drawPlayhead(g, w, hgt, pxPerSec) {
     if (!this.playhead) return;
     const x = this.playhead.t * pxPerSec;
-    g.fillStyle = cssVar('--accent');
+    g.fillStyle = cssVar('--playhead', this.canvas) || cssVar('--accent', this.canvas);
     g.fillRect(Math.max(0, Math.min(w - 2, x)), 0, 2, hgt);
   }
 

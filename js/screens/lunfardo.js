@@ -1,7 +1,7 @@
 import { h, iconEl, toast } from '../ui.js';
 import { readTabs } from './leer.js';
 import { LUNFARDO, REGISTER, KIND } from '../lunfardo.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { speak, stopSpeaking } from '../tts.js';
 
@@ -44,14 +44,14 @@ export async function render(main) {
     listen.onclick = () => speak(e.w);
     const save = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Guardar en Mazo');
     save.onclick = async () => {
-      await db.put('mazo', { front: e.w, ipa: transcribe(e.w), back: `${e.es} (${e.en}) · ${e.ej}`, tag: '#Lunfardo', created: Date.now() });
+      await db.put('mazo', { front: e.w, ipa: ipaFor(e.w), back: `${e.es} (${e.en}) · ${e.ej}`, tag: '#Lunfardo', created: Date.now() });
       toast('Guardado en Penumbra');
     };
     return h('article', { class: 'card', style: 'gap:8px' },
       h('div', { class: 'between', style: 'align-items:flex-start' },
         h('div', { style: 'display:flex;flex-direction:column;gap:2px' },
           h('h2', { style: 'font-size:24px', lang: 'es-AR' }, e.w),
-          h('span', { class: 'ipa', style: 'font-size:14px' }, transcribe(e.w))),
+          h('span', { class: 'ipa', style: 'font-size:14px' }, ipaFor(e.w))),
         listen),
       h('div', { class: 'row wrap', style: 'gap:10px' }, meter(e.reg), h('span', { class: 'chip' }, KIND[e.kind])),
       h('p', { style: 'font-size:15px;line-height:1.4' }, e.es, ' ', h('span', { class: 'muted' }, `· ${e.en}`)),
