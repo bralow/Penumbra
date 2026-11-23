@@ -85,7 +85,7 @@ export function showWordPanel(panel, word, { context = '', tag = '#Lectura' } = 
   const shown = ipaFor(word);
   log('lookup', { word: a.word });
   discover(ipa);
-  const syl = a.spelling.map((s, i) => h('span', { style: `padding:6px 12px;border-radius:10px;background:color-mix(in srgb, var(--hero-ink) 12%, transparent);font-size:15px;${i === a.stress ? 'font-weight:700' : ''}` }, i === a.stress && a.spelling.length > 1 ? s.toUpperCase() : s));
+  const syl = a.spelling.map((s, i) => h('span', { style: `padding:6px 12px;border-radius:10px;background:${i === a.stress ? 'var(--sb-tint, var(--chip))' : 'var(--surface)'};border:1px solid var(--sb-line, var(--line));font-size:15px;${i === a.stress ? 'font-weight:700;color:var(--accent)' : ''}` }, i === a.stress && a.spelling.length > 1 ? s.toUpperCase() : s));
   const sylRow = h('div', { class: 'row wrap', style: 'gap:6px' });
   syl.forEach((s, i) => { if (i) sylRow.append(h('span', { style: 'color:var(--hero-muted)' }, '·')); sylRow.append(s); });
   sylRow.append(h('span', { style: 'font-size:12px;color:var(--hero-muted);margin-left:6px' },
@@ -93,7 +93,7 @@ export function showWordPanel(panel, word, { context = '', tag = '#Lectura' } = 
   const feats = features(word, ipa).map(([badge, desc, local]) => h('div', { class: 'row', style: 'gap:10px;font-size:13px;align-items:flex-start' },
     h('span', { style: `flex:none;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;${local ? 'background:var(--accent);color:var(--accent-ink)' : 'border:1px solid var(--hero-muted)'}` }, badge),
     h('span', { style: 'padding-top:2px' }, desc)));
-  const ext = (href, label) => h('a', { href, target: '_blank', rel: 'noopener', style: 'flex:1;min-height:44px;border-radius:12px;background:color-mix(in srgb, var(--hero-ink) 12%, transparent);color:var(--hero-ink);text-decoration:none;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px' },
+  const ext = (href, label) => h('a', { href, target: '_blank', rel: 'noopener', style: 'flex:1;min-height:44px;border-radius:12px;background:var(--surface);border:1px solid var(--sb-line, var(--line));color:var(--ink);text-decoration:none;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px' },
     label, h('span', { html: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>', style: 'display:contents' }));
   const listen = h('button', { type: 'button', class: 'btn ghost', style: 'flex:1;color:var(--hero-ink);border-color:var(--hero-muted)' }, iconEl('play'), 'Escuchar');
   listen.onclick = async () => {

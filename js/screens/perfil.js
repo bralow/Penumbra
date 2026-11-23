@@ -20,16 +20,50 @@ function pillGroup(label, options, value, onPick, { cls = 'grid6', goal = false,
 export async function render(main) {
   const s = getSettings();
   main.append(pageHead('AJUSTES Y DATOS LOCALES', 'Perfil y configuración', h('span', { class: 'tag' }, `Versión ${APP_VERSION.split(' ')[0]}`)));
-  const grid = h('div', { class: 'masonry' });
-  main.append(grid);
+  // Layout: two compact cards on top (level, speed), Metas across the full width, then two columns:
+  // appearance and voice on the left, the utility cards (Gemini, clips, sync) on the right.
+  const top = h('div', { class: 'aj-pair' });
+  const metasSlot = h('div', {});
+  const left = h('div', { class: 'aj-col' }), right = h('div', { class: 'aj-col' });
+  main.append(top, metasSlot, h('div', { class: 'aj-cols' }, left, right));
+  const grid = { append: (...els) => left.append(...els) };
 
-  grid.append(h('section', { class: 'card' },
-    pillGroup('Nivel actual', LEVELS, s.level, (v) => setSetting('level', v)),
-    pillGroup('Meta', LEVELS, s.goal, (v) => setSetting('goal', v), { goal: true }),
-    h('p', { class: 'muted small', style: 'line-height:1.4' }, 'Tu nivel elige qué frases te tocan en Sombra: las de tu nivel y las de un nivel arriba o abajo.')));
+  const selectEl = (label, options, value, fmt = (x) => x) => {
+    const sel = h('select', { class: 'aj-select', 'aria-label': label }, ...options.map((o) => h('option', { value: o }, fmt(o))));
+    sel.value = value;
+    return sel;
+  };
+  const fieldWrap = (label, control, extra = null) => h('div', { class: 'aj-field' }, h('span', { class: 'aj-label' }, label), control, extra);
 
-  grid.append(h('section', { class: 'card' },
-    pillGroup('Velocidad inicial', ['0.5', '0.75', '1'], s.speed, (v) => setSetting('speed', v), { cls: 'grid3', fmt: (x) => (x === '1' ? '1.0x' : x + 'x') })));
+  // Nivel y meta: two selects side by side and a badge.
+  const lvl = selectEl('Nivel actual', LEVELS, s.level);
+  const goalSel = selectEl('Meta', LEVELS, s.goal);
+  const badge = h('span', { class: 'aj-badge', 'aria-live': 'polite' });
+  const paintBadge = () => { badge.textContent = `${lvl.value} → ${goalSel.value}`; badge.classList.toggle('warn', LEVELS.indexOf(goalSel.value) < LEVELS.indexOf(lvl.value)); badge.title = badge.classList.contains('warn') ? 'La meta está por debajo de tu nivel' : ''; };
+  lvl.onchange = () => { setSetting('level', lvl.value); paintBadge(); };
+  goalSel.onchange = () => { setSetting('goal', goalSel.value); paintBadge(); };
+  paintBadge();
+  top.append(h('section', { class: 'card aj-card' },
+    h('div', { class: 'aj-head' }, h('h3', {}, 'Nivel y meta'), badge),
+    h('div', { class: 'aj-two' }, fieldWrap('Nivel actual', lvl), fieldWrap('Meta', goalSel)),
+    h('p', { class: 'muted small aj-note' }, 'Tu nivel elige qué frases te tocan en Sombra: las de tu nivel y las de un nivel arriba o abajo.')));
+
+  // Velocidad inicial: a smooth slider from 0.25x to 2x.
+  const fmtSpeed = (v) => `${Number(v).toFixed(2)}x`;
+  const startSpeed = Math.min(2, Math.max(0.25, parseFloat(s.speed) || 1));
+  const speedOut = h('output', { class: 'aj-badge' }, fmtSpeed(startSpeed));
+  const speedIn = h('input', { type: 'range', min: '0.25', max: '2', step: '0.05', value: String(startSpeed), class: 'aj-range', 'aria-label': 'Velocidad inicial', 'aria-valuetext': fmtSpeed(startSpeed) });
+  const saveSpeed = (v) => { const x = Math.round(Math.min(2, Math.max(0.25, v)) * 100) / 100; speedIn.value = String(x); speedOut.textContent = fmtSpeed(x); speedIn.setAttribute('aria-valuetext', fmtSpeed(x)); setSetting('speed', String(x)); paintTicks(); };
+  speedIn.oninput = () => { speedOut.textContent = fmtSpeed(speedIn.value); speedIn.setAttribute('aria-valuetext', fmtSpeed(speedIn.value)); };
+  speedIn.onchange = () => saveSpeed(parseFloat(speedIn.value));
+  const ticks = [[0.25, '0.25x'], [1, '1.0x'], [2, '2.0x']].map(([v, l]) => { const b = h('button', { type: 'button', class: 'aj-tick', 'aria-label': `Velocidad ${l}` }, l); b.onclick = () => saveSpeed(v); return [v, b]; });
+  function paintTicks() { ticks.forEach(([v, b]) => b.setAttribute('aria-pressed', String(Math.abs(parseFloat(speedIn.value) - v) < 0.001))); }
+  paintTicks();
+  top.append(h('section', { class: 'card aj-card' },
+    h('div', { class: 'aj-head' }, h('h3', {}, 'Velocidad inicial'), speedOut),
+    speedIn,
+    h('div', { class: 'aj-ticks' }, ...ticks.map(([, b]) => b)),
+    h('p', { class: 'muted small aj-note' }, 'Con la que arranca el audio nativo en Sombra. Después la cambiás en cada práctica.')));
 
   // Appearance: accent, density, your name, which blocks Hoy shows. (Light/dark is the button in the top bar.)
   // Accent: quick presets or any colour of your own (picker or #hex). The whole app follows it.
@@ -83,13 +117,38 @@ export async function render(main) {
   const g = { reviews: 30, streak: 30, ...(s.goals || {}) };
   const pen = penSettings();
   const setGoal = (k, v) => { g[k] = v; setSetting('goals', { ...g }); };
-  grid.append(h('section', { class: 'card' },
-    h('span', { class: 'kicker' }, 'METAS'),
-    pillGroup('Repasos por día', ['10', '20', '30', '50', '100'], String(g.reviews), (v) => setGoal('reviews', Number(v)), { cls: 'grid6' }),
-    pillGroup('Tarjetas nuevas por día', ['5', '10', '15', '20', '30'], String(pen.newPerDay), (v) => savePen({ newPerDay: Number(v) }), { cls: 'grid6' }),
-    pillGroup('Meta de racha (días)', ['7', '30', '100', '365'], String(g.streak), (v) => setGoal('streak', Number(v)), { cls: 'grid6' }),
-    pillGroup('Retención buscada', ['0.85', '0.9', '0.95'], String(pen.retention), (v) => savePen({ retention: Number(v) }), { cls: 'grid3', fmt: (x) => `${Math.round(Number(x) * 100)}%` }),
-    h('p', { class: 'muted small', style: 'line-height:1.4' }, 'La retención es cuánto querés recordar al repasar. Más alta = repasos más seguidos (más trabajo, menos olvidos). 90% es el equilibrio habitual.')));
+  // Each goal is a select with a few common values and «Personalizado…», which shows a number box.
+  const goalPicker = (label, presets, value, max, onSave) => {
+    const CUSTOM = 'custom';
+    const isPreset = presets.includes(Number(value));
+    const sel = h('select', { class: 'aj-select', 'aria-label': label },
+      ...presets.map((n) => h('option', { value: String(n) }, String(n))), h('option', { value: CUSTOM }, 'Personalizado…'));
+    sel.value = isPreset ? String(value) : CUSTOM;
+    const num = h('input', { type: 'number', min: '1', max: String(max), step: '1', inputmode: 'numeric', value: String(value), class: 'aj-num', 'aria-label': `${label}: número personalizado`, hidden: isPreset });
+    const err = h('span', { class: 'aj-err', role: 'status' });
+    const commit = () => {
+      const n = Math.round(Number(num.value));
+      if (!Number.isFinite(n) || n < 1 || n > max) { err.textContent = `Entre 1 y ${max}.`; return; }
+      err.textContent = ''; num.value = String(n); onSave(n);
+    };
+    sel.onchange = () => {
+      if (sel.value === CUSTOM) { num.hidden = false; num.focus(); num.select(); return; }
+      num.hidden = true; err.textContent = ''; num.value = sel.value; onSave(Number(sel.value));
+    };
+    num.onchange = commit;
+    num.onkeydown = (e) => { if (e.key === 'Enter') commit(); };
+    return h('div', { class: 'aj-field' }, h('span', { class: 'aj-label', 'aria-hidden': 'true' }, label), sel, num, err);
+  };
+  const retBtns = ['0.85', '0.9', '0.95'].map((v) => h('button', { type: 'button', class: 'pill', 'aria-pressed': String(String(pen.retention) === v) }, `${Math.round(Number(v) * 100)}%`));
+  retBtns.forEach((b, i) => { b.onclick = () => { retBtns.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j))); savePen({ retention: Number(['0.85', '0.9', '0.95'][i]) }); }; });
+  metasSlot.append(h('section', { class: 'card aj-card' },
+    h('div', { class: 'aj-head' }, h('h3', {}, 'Metas'), h('span', { class: 'muted small' }, 'Se ven como medidores en Hoy')),
+    h('div', { class: 'aj-three' },
+      goalPicker('Repasos por día', [10, 20, 30, 50, 100], g.reviews, 9999, (n) => setGoal('reviews', n)),
+      goalPicker('Tarjetas nuevas por día', [5, 10, 15, 20, 30], pen.newPerDay, 999, (n) => savePen({ newPerDay: n })),
+      goalPicker('Meta de racha (días)', [7, 30, 100, 365], g.streak, 9999, (n) => setGoal('streak', n))),
+    h('div', { class: 'aj-ret' }, h('span', { class: 'aj-label' }, 'Retención buscada'), h('div', { class: 'aj-seg', role: 'group', 'aria-label': 'Retención buscada' }, retBtns),
+      h('span', { class: 'muted small', style: 'flex:1;min-width:200px;line-height:1.35' }, 'Cuánto querés recordar al repasar. Más alta = repasos más seguidos. 90% es el equilibrio habitual.'))));
 
   // Argentine voice (Azure)
   const tts = getTts();
@@ -156,7 +215,7 @@ export async function render(main) {
     style: 'min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:15px;width:100%' });
   const gStatus = h('p', { class: 'small', role: 'status' }, gm.key && gm.model ? `Conectado (${gm.model}).` : '');
   const gTest = h('button', { type: 'button', class: 'btn' }, 'Guardar y probar');
-  const gRemove = h('button', { type: 'button', class: 'btn ghost', hidden: !gm.key }, 'Quitar clave');
+  const gRemove = h('button', { type: 'button', class: 'pill aj-small', hidden: !gm.key }, 'Quitar clave');
   gTest.onclick = async () => {
     const k = gKey.value.trim();
     if (!k) { gStatus.textContent = 'Pegá tu clave primero.'; return; }
@@ -168,11 +227,12 @@ export async function render(main) {
     } catch (err) { gStatus.textContent = 'No funcionó: ' + (err.message || err); }
   };
   gRemove.onclick = () => { setGemini({ key: '', model: '' }); gKey.value = ''; gStatus.textContent = 'Clave quitada del teléfono.'; gRemove.hidden = true; };
-  grid.append(h('section', { class: 'card' },
-    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Gemini (funciones con IA)'),
-    h('p', { class: 'muted small', style: 'line-height:1.4' }, 'Pegá tu clave de Google AI Studio. Queda guardada solo en este teléfono y se envía únicamente a Google. En el plan gratis, Google puede usar lo que escribas para mejorar sus productos: no compartas datos privados.'),
-    h('label', { for: 'gkey', class: 'small', style: 'font-weight:600' }, 'Clave de Gemini'), gKey,
-    h('div', { class: 'row wrap' }, gTest, gRemove), gStatus));
+  gKey.className = 'aj-input'; gKey.removeAttribute('style'); gKey.setAttribute('aria-label', 'Clave de Gemini');
+  right.append(h('section', { class: 'card aj-card aj-tight' },
+    h('div', { class: 'aj-head' }, h('h3', {}, 'Gemini (funciones con IA)'), h('span', { class: `aj-dot${gm.key && gm.model ? ' on' : ''}`, 'aria-hidden': 'true' })),
+    h('div', { class: 'aj-inline' }, gKey, gTest), h('div', { class: 'aj-status' }, gStatus, gRemove),
+    h('details', { class: 'aj-more' }, h('summary', {}, 'Sobre la clave'),
+      h('p', { class: 'muted small' }, 'Pegá tu clave de Google AI Studio. Queda guardada solo en este teléfono y se envía únicamente a Google. En el plan gratis, Google puede usar lo que escribas para mejorar sus productos: no compartas datos privados.'))));
 
   // Clip pack import
   const count = h('span', { class: 'muted small' });
@@ -200,21 +260,22 @@ export async function render(main) {
     refresh();
   };
   const clearBtn = h('button', { type: 'button', class: 'btn ghost' }, 'Borrar clips');
+  input.hidden = true;
   clearBtn.onclick = async () => {
     if (!(await db.count('clips'))) return;
     if (!window.confirm('¿Borrar todos los clips del teléfono? Tu Mazo no se toca.')) return;
     await db.clear('clips'); await db.clear('audio'); refresh(); toast('Clips borrados');
   };
-  grid.append(h('section', { class: 'card' },
-    h('h3', { style: 'font-size:15px;font-weight:700' }, 'Clips de audio'), count,
-    h('div', { class: 'row wrap' }, importBtn, input, clearBtn), status));
+  right.append(h('section', { class: 'card aj-card aj-tight' },
+    h('div', { class: 'aj-head' }, h('h3', {}, 'Clips de audio'), count),
+    h('div', { class: 'aj-inline' }, importBtn, input, clearBtn), status));
   refresh();
 
   const sync = syncSection();
-  grid.append(sync);
+  right.append(sync);
   if (/[?&]sync/.test(location.hash)) requestAnimationFrame(() => sync.scrollIntoView({ block: 'start' }));
 
-  grid.append(h('section', { style: 'padding:4px 4px 0;display:flex;flex-direction:column;gap:6px' },
+  main.append(h('section', { style: 'padding:4px 4px 0;display:flex;flex-direction:column;gap:6px' },
     h('h3', { class: 'muted', style: 'font-size:13px;font-weight:700;letter-spacing:.08em' }, 'CRÉDITOS'),
     h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Audio: corpus de español argentino de OpenSLR (Google), con licencia ',
       h('a', { href: 'https://creativecommons.org/licenses/by-sa/4.0/', target: '_blank', rel: 'noopener' }, 'CC BY-SA 4.0'), '.'),
@@ -225,7 +286,7 @@ export async function render(main) {
 // Sync and backup (FE-01): Google Drive keeps devices identical; the backup file works anywhere, offline.
 function syncSection() {
   const ago = (t) => { if (!t) return 'nunca'; const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'recién' : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} días`; };
-  const box = h('section', { class: 'card', id: 'sync', style: 'scroll-margin-top:72px' });
+  const box = h('section', { class: 'card aj-card aj-tight', id: 'sync', style: 'scroll-margin-top:72px' });
   const status = h('p', { class: 'small', role: 'status', style: 'line-height:1.45' });
   const fieldStyle = 'min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;width:100%';
 
@@ -234,9 +295,9 @@ function syncSection() {
     box.replaceChildren(h('span', { class: 'kicker' }, 'SINCRONIZACIÓN Y COPIA'));
 
     // Google Drive
-    box.append(h('h3', { style: 'font-size:15px;font-weight:700' }, 'Google Drive'));
+    box.append(h('div', { class: 'aj-head' }, h('h3', {}, 'Google Drive'), h('span', { class: `aj-dot${connected && !st.error ? ' on' : ''}`, 'aria-hidden': 'true' })));
     if (!connected) {
-      box.append(h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Mantiene el teléfono y la compu iguales usando una carpeta oculta de tu propio Drive. Penumbra solo ve esa carpeta, ninguno de tus otros archivos. Al conectar, vas a la página de Google y volvés solo.'));
+      box.append(h('details', { class: 'aj-more' }, h('summary', {}, 'Cómo funciona'), h('p', { class: 'muted small' }, 'Mantiene el teléfono y la compu iguales usando una carpeta oculta de tu propio Drive. Penumbra solo ve esa carpeta, ninguno de tus otros archivos. Al conectar, vas a la página de Google y volvés solo.')));
       if (st.error) box.append(h('p', { class: 'small', style: 'color:var(--gold-text)' }, st.error));
       const id = h('input', { type: 'text', value: driveConfig().clientId || '', placeholder: 'Client ID de Google (termina en .apps.googleusercontent.com)', 'aria-label': 'Client ID de Google', autocomplete: 'off', spellcheck: 'false', style: fieldStyle, hidden: !!BUILT_IN_CLIENT_ID });
       const go = h('button', { type: 'button', class: 'btn' }, 'Conectar Google Drive');
@@ -246,7 +307,7 @@ function syncSection() {
         try { await signIn(true); status.textContent = 'Conectado. Sincronizando…'; await syncNow({ onProgress: (t) => { status.textContent = t; } }); paint(); toast('Sincronizado con Drive'); }
         catch (e) { status.textContent = `No se pudo conectar: ${e.message || e}`; }
       };
-      box.append(id, go);
+      box.append(h('div', { class: 'aj-inline' }, id, go));
     } else {
       const line = st.busy ? 'Sincronizando…' : st.error ? `Último intento falló: ${st.error}` : `Última sincronización: ${ago(st.lastSync)}`;
       const last = st.last && !st.error ? ` · ${st.last.in} llegaron, ${st.last.out} subieron${st.last.deleted ? `, ${st.last.deleted} borradas` : ''}${st.last.lenguatube ? `, ${st.last.lenguatube} de LenguaTube` : ''}` : '';
@@ -259,8 +320,8 @@ function syncSection() {
       };
       const off = h('button', { type: 'button', class: 'btn ghost' }, 'Desconectar');
       off.onclick = () => { if (window.confirm('¿Desconectar Google Drive en este dispositivo? Tus datos no se borran.')) { disconnect(); paint(); } };
-      box.append(h('p', { class: 'small' }, line + last), h('div', { class: 'row wrap' }, now, off),
-        h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Sincroniza sola al abrir la app y después de cada cambio, mientras la sesión de Google esté activa (una hora). Si venció, tocá «Sincronizar ahora». Los paquetes de clips, podcast y canciones no viajan: se importan una vez en cada dispositivo.'));
+      box.append(h('p', { class: 'small' }, line + last), h('div', { class: 'aj-inline' }, now, off),
+        h('details', { class: 'aj-more' }, h('summary', {}, 'Cómo funciona'), h('p', { class: 'muted small' }, 'Sincroniza sola al abrir la app y después de cada cambio, mientras la sesión de Google esté activa (una hora). Si venció, tocá «Sincronizar ahora». Los paquetes de clips, podcast y canciones no viajan: se importan una vez en cada dispositivo.')));
     }
 
     // Backup file
@@ -285,9 +346,10 @@ function syncSection() {
       try { const r = await restoreFile(f); status.textContent = `Listo: ${r.in} cosas restauradas${r.deleted ? `, ${r.deleted} borradas` : ''}. Lo que ya tenías acá se mantiene.`; toast('Copia restaurada'); }
       catch (e) { status.textContent = `No se pudo restaurar: ${e.message || e}`; }
     };
-    box.append(h('h3', { style: 'font-size:15px;font-weight:700;margin-top:6px' }, 'Copia de seguridad'),
-      h('p', { class: 'muted small', style: 'line-height:1.45' }, `Un archivo con tus tarjetas, repasos, libros, notas, diario y ajustes. Restaurarla combina, no pisa: no perdés nada de lo que hay en este dispositivo. Última copia: ${ago(st.lastBackup)}.`),
-      h('div', { class: 'row wrap' }, dl, up, file), status);
+    box.append(h('div', { class: 'aj-head aj-sep' }, h('h3', {}, 'Copia de seguridad'), h('span', { class: 'muted small' }, `Última: ${ago(st.lastBackup)}`)),
+      h('div', { class: 'aj-inline' }, dl, up, file),
+      h('details', { class: 'aj-more' }, h('summary', {}, 'Qué guarda'), h('p', { class: 'muted small' }, 'Un archivo con tus tarjetas, repasos, libros, notas, diario y ajustes. Restaurarla combina, no pisa: no perdés nada de lo que hay en este dispositivo.')),
+      status);
   }
   paint();
   return box;

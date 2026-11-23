@@ -119,7 +119,7 @@ function episodeView(main, ep) {
   const saveBtn = h('button', { type: 'button', class: 'pill', style: 'min-height:38px;font-size:12px' }, '+ Penumbra');
   const timeEl = h('span', { class: 'muted small', style: 'font-variant-numeric:tabular-nums;white-space:nowrap' }, `0:00 / ${clock(ep.duration)}`);
   const bar = h('input', { type: 'range', min: '0', max: String(Math.round(ep.duration || 1)), step: '1', value: '0', 'aria-label': 'Posición', style: 'width:100%;accent-color:var(--accent)' });
-  const controls = h('section', { class: 'card', style: 'position:sticky;bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:5;gap:6px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.12)' },
+  const controls = h('section', { class: 'card media-dock', 'aria-label': 'Reproductor' },
     bar,
     h('div', { class: 'between', style: 'flex-wrap:nowrap;gap:6px' }, timeEl,
       h('div', { class: 'row', style: 'gap:2px;flex-wrap:nowrap;align-items:center' }, prevBtn, playBtn, nextBtn)),

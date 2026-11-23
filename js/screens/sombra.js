@@ -212,7 +212,8 @@ export async function render(main) {
 
   // --- Practice dock: speed and loop, then Escuchar / Grabar / Mi voz, then Mezcla 50/50 and Guardar.
   const speeds = ['0.5', '0.75', '1'];
-  let speed = speeds.includes(settings.speed) ? settings.speed : '1';
+  // Starting speed from Ajustes (0.25x–2x); the three quick buttons stay for switching here.
+  let speed = String(Math.min(2, Math.max(0.25, parseFloat(settings.speed) || 1)));
   const speedBtns = speeds.map((v) => h('button', { type: 'button', 'aria-pressed': String(v === speed), onclick: () => setSpeed(v) }, v === '1' ? '1.0x' : v + 'x'));
   const loopBtn = h('button', { type: 'button', class: 'sb-btn ghost', 'aria-pressed': 'false' }, ic('loop'), 'Bucle');
   const playBtn = h('button', { type: 'button', class: 'round native', 'aria-label': 'Escuchar la nativa' }, iconEl('play'));
