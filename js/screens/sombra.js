@@ -4,7 +4,7 @@ import { getSettings } from '../settings.js';
 import { ipaFor } from '../ipa.js';
 import { Player, Recorder, decode, peaks } from '../audio.js';
 import { Waveform, onset, speechEnd } from '../waveform.js';
-import { pitchTrack } from '../pitch.js';
+import { pitchTrack, continuous } from '../pitch.js';
 import { alignTakes } from '../dtw.js';
 import { log } from '../progress.js';
 import { FEATURES, prosodyLine, pauseLegend, showPauses, setShowPauses } from '../prosody.js';
@@ -286,7 +286,7 @@ export async function render(main) {
         const buf = await decode(nativeBlob);
         nativeBuf = buf;
         wave.setNative(peaks(buf), buf.duration);
-        setTimeout(() => { if (current && current.id === id) wave.setNativePitch(pitchTrack(buf)); }, 0);
+        setTimeout(() => { if (current && current.id === id) wave.setNativePitch(continuous(pitchTrack(buf))); }, 0);
         timeEnd.textContent = buf.duration.toFixed(1).replace('.', ',') + ' s';
       } catch { wave.setNative(null); }
     }
@@ -303,7 +303,7 @@ export async function render(main) {
       const buf = await decode(blob);
       userBuf = buf; wave.warp = null;
       wave.setUser(peaks(buf), buf.duration);
-      wave.setUserPitch(pitchTrack(buf));
+      wave.setUserPitch(continuous(pitchTrack(buf, { lenient: true })));
       wave.scale = 1; matchLen.setAttribute('aria-pressed', 'false');
       autoAlignStart();
       log('sombra', { recorded: true });

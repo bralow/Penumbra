@@ -2,6 +2,8 @@
 // stretch is (to tell a full [s] from an aspirated [h]), and small canvases to show them.
 // These are estimates from the waveform, good for spotting patterns, not lab measurements.
 
+import { continuous } from './pitch.js';
+
 const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
 // RMS loudness every `hop` seconds, lightly smoothed. Returns { t: Float32Array, v: Float32Array, hop }.
@@ -99,19 +101,26 @@ export function drawContours(canvas, tracks) {
   g.fillStyle = cssVar('--line'); g.fillRect(0, hgt / 2 - 0.5, w, 1);
   for (const tr of tracks) {
     if (!tr || !tr.track) continue;
-    const { times, st } = tr.track;
+    const c = continuous(tr.track);
+    const { times, st, bridged } = c;
     const idx = []; for (let i = 0; i < st.length; i++) if (!Number.isNaN(st[i])) idx.push(i);
     if (idx.length < 3) continue;
     const a = times[idx[0]], b = times[idx[idx.length - 1]];
-    g.strokeStyle = tr.color; g.lineWidth = 3; g.lineCap = 'round'; g.lineJoin = 'round';
-    let prev = -10;
-    g.beginPath();
-    for (const i of idx) {
-      const x = 8 + ((times[i] - a) / Math.max(0.01, b - a)) * (w - 16), y = hgt / 2 - (st[i] / 9) * (hgt / 2 - 6);
-      if (i - prev > 6) g.moveTo(x, y); else g.lineTo(x, y);
-      prev = i;
+    const X = (i) => 8 + ((times[i] - a) / Math.max(0.01, b - a)) * (w - 16);
+    const Y = (i) => hgt / 2 - (Math.max(-9, Math.min(9, st[i])) / 9) * (hgt / 2 - 6);
+    g.strokeStyle = tr.color; g.lineCap = 'round'; g.lineJoin = 'round';
+    // One continuous line; stretches joined across a long pause are drawn thinner and dashed.
+    let k = 0;
+    while (k < idx.length - 1) {
+      const dashed = !!bridged[idx[k + 1]];
+      let e = k + 1; while (e < idx.length - 1 && !!bridged[idx[e + 1]] === dashed) e++;
+      g.beginPath(); g.setLineDash(dashed ? [5, 6] : []); g.lineWidth = dashed ? 1.5 : 3; g.globalAlpha = dashed ? 0.55 : 1;
+      g.moveTo(X(idx[k]), Y(idx[k]));
+      for (let m = k + 1; m <= e; m++) g.lineTo(X(idx[m]), Y(idx[m]));
+      g.stroke();
+      k = e;
     }
-    g.stroke();
+    g.setLineDash([]); g.globalAlpha = 1;
   }
 }
 

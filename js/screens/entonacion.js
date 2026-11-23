@@ -137,10 +137,11 @@ function practice(main) {
     if (!blob || !blob.size) return;
     mine.load(blob); mineBtn.disabled = false;
     try {
-      const mt = pitchTrack(await decode(blob));
+      const mt = pitchTrack(await decode(blob), { lenient: true });
       const nt = modelBlob ? pitchTrack(await decode(modelBlob)) : null;
       result.hidden = false;
-      drawContours(canvas, [nt && { track: nt, color: getComputedStyle(document.documentElement).getPropertyValue('--native') }, { track: mt, color: getComputedStyle(document.documentElement).getPropertyValue('--user') }]);
+      const css = getComputedStyle(canvas);
+      drawContours(canvas, [nt && { track: nt, color: css.getPropertyValue('--native') }, { track: mt, color: css.getPropertyValue('--user') }]);
       const sh = contourShape(mt);
       let ok = false, msg = '';
       if (!sh) msg = 'No escuché bien la melodía. Grabá de nuevo, un poco más fuerte.';
