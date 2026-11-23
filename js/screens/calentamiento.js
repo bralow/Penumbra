@@ -1,7 +1,7 @@
 import { h, iconEl, shuffle, LEVELS } from '../ui.js';
 import { db } from '../db.js';
 import { getSettings } from '../settings.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { Player } from '../audio.js';
 import { log } from '../progress.js';
 import { prosodyLine, pauseLegend, showPauses, setShowPauses } from '../prosody.js';
@@ -63,7 +63,7 @@ export async function render(main) {
     for (let i = 0; i < set.length && !cancelled; i++) {
       const c = set[i];
       const blob = await db.audioFor(c.id);
-      text = c.text; paint(); ipa.textContent = transcribe(c.text);
+      text = c.text; paint(); ipa.textContent = ipaFor(c.text);
       for (let r = 0; r < REPS && !cancelled; r++) {
         step.textContent = `FRASE ${i + 1} DE ${set.length} · VUELTA ${r + 1}`;
         cue.textContent = 'Escuchá…'; cue.style.color = 'var(--ink)'; fill.style.width = '0%';

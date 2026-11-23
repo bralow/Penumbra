@@ -1,7 +1,7 @@
 import { h, iconEl, toast } from '../ui.js';
 import { practiceTabs } from './sombra.js';
 import { TRABAS, PACE } from '../trabadata.js';
-import { analyzeWord, transcribe } from '../ipa.js';
+import { analyzeWord, ipaFor } from '../ipa.js';
 import { Player, Recorder, decode, peaks } from '../audio.js';
 import { onset, speechEnd } from '../waveform.js';
 import { log } from '../progress.js';
@@ -112,7 +112,7 @@ export async function render(main) {
       spans.push(s);
       return s;
     }));
-    ipaEl.textContent = transcribe(t.text);
+    ipaEl.textContent = ipaFor(t.text);
     result.hidden = true; mineBtn.disabled = true; player.load(null); flor.load(null);
   }
 

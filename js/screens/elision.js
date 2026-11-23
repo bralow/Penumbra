@@ -1,6 +1,6 @@
 import { h, iconEl, toast, shuffle } from '../ui.js';
 import { practiceTabs } from './sombra.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { Player, Recorder, decode, peaks } from '../audio.js';
 import { onset, speechEnd } from '../waveform.js';
@@ -79,7 +79,7 @@ export async function render(main) {
     }
     parts.push(c.text.slice(last));
     textEl.replaceChildren(...parts);
-    ipaEl.textContent = transcribe(c.text);
+    ipaEl.textContent = ipaFor(c.text);
     nativeBlob = await db.audioFor(c.id);
     native.load(nativeBlob); setRate();
   }

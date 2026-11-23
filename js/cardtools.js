@@ -1,7 +1,7 @@
 // Card tools: saving an edited note, duplicate detection and merging (FE-03), the AI proofreader (FE-16).
 import { db } from './db.js';
 import { ensureDeck } from './penumbra.js';
-import { transcribe } from './ipa.js';
+import { ipaFor } from './ipa.js';
 
 // --- Comparing fronts: ignores capitals, accents, punctuation and a leading article ("el laburo" = "laburo").
 const ARTICLES = /^(el|la|los|las|lo|un|una|unos|unas|al|del)\s+/;
@@ -91,7 +91,7 @@ export async function saveNote(noteId, fields, types, deckName) {
   const d = await ensureDeck(deckName);
   const base = sibs[0] || {};
   const now = Date.now();
-  const ipa = fields.ipaMode === 'off' ? '' : fields.ipaMode === 'manual' ? fields.ipa : transcribe(fields.front);
+  const ipa = fields.ipaMode === 'off' ? '' : fields.ipaMode === 'manual' ? fields.ipa : ipaFor(fields.front);
   const shared = { ...fields, ipa, deck: d.id, updated: now };
   for (const c of sibs) {
     if (!types.includes(c.type)) await db.remove('cards', c.id);

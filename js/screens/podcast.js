@@ -4,8 +4,8 @@ import { h, iconEl, toast } from '../ui.js';
 import { readTabs } from './leer.js';
 import { db, persist } from '../db.js';
 import { importPack, positions, savePosition, segmentAt } from '../podcast.js';
-import { features } from '../wordpanel.js';
-import { transcribe, analyzeWord } from '../ipa.js';
+import { features, phraseIPA } from '../wordpanel.js';
+import { ipaFor, analyzeWord } from '../ipa.js';
 import { log, discover } from '../progress.js';
 import { speak } from '../tts.js';
 
@@ -200,7 +200,7 @@ function episodeView(main, ep) {
     saving = true;
     try {
       if (await inPenumbra(s.t)) { toast('Ya está en Penumbra'); return; }
-      await db.put('mazo', { front: s.t, ipa: transcribe(s.t), back: `${ep.show} · ${ep.title} · ${clock(s.s)}`, tag: '#ArgenTalk', created: Date.now(),
+      await db.put('mazo', { front: s.t, ipa: ipaFor(s.t), back: `${ep.show} · ${ep.title} · ${clock(s.s)}`, tag: '#ArgenTalk', created: Date.now(),
         source: { kind: 'podcast', id: ep.id, s: s.s, e: s.e, label: `${ep.title} · ${clock(s.s)}` } });
       toast('Guardada en Penumbra');
     } finally { setTimeout(() => { saving = false; }, 800); }
@@ -325,7 +325,7 @@ function episodeView(main, ep) {
       saving = true; saveWord.disabled = true;
       try {
         if (await inPenumbra(lw)) { toast('Ya está en Penumbra'); saveWord.textContent = '✓ En Penumbra'; return; }
-        await db.put('mazo', { front: lw, ipa: info ? info.ipa : transcribe(lw), back: s.t, tag: '#ArgenTalk', created: Date.now(),
+        await db.put('mazo', { front: lw, ipa: ipaFor(lw), back: s.t, tag: '#ArgenTalk', created: Date.now(),
           source: b > a ? { kind: 'podcast', id: ep.id, s: Math.max(0, a - 0.06), e: b + 0.08, label: `${ep.title} · ${clock(a)}` } : undefined });
         saveWord.textContent = '✓ En Penumbra';
         toast('Guardada en Penumbra');
@@ -336,8 +336,9 @@ function episodeView(main, ep) {
       h('div', { class: 'row', style: 'gap:6px;flex-wrap:nowrap' }, replayBtn, follow, close),
       h('div', { style: 'display:flex;flex-direction:column;gap:2px' },
         h('span', { style: 'font-family:var(--display);font-size:28px;font-weight:700;line-height:1.1' }, lw),
-        info ? h('span', { class: 'ipa', style: 'font-size:16px;color:var(--accent)' }, info.ipa) : null),
+        info ? h('span', { class: 'ipa', style: 'font-size:16px;color:var(--accent)' }, ipaFor(lw)) : null),
       meaning, sentence,
+      phraseIPA(ws.map(([w]) => w).join(' '), lw, ws.slice(0, wi).filter(([w]) => clean(w).toLowerCase() === lw).length, 'font-size:13.5px;line-height:1.5'),
       ...soundBits,
       h('div', { class: 'row', style: 'gap:6px' }, ext(`https://dle.rae.es/${encodeURIComponent(lw)}`, 'Ver en el DLE'), ext(`https://www.asale.org/damer/${encodeURIComponent(lw)}`, 'Americanismos')),
       h('div', { class: 'row', style: 'gap:6px' }, listen, saveLine, saveWord));

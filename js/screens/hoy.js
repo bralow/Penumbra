@@ -4,7 +4,7 @@
 import { h, iconEl, toast, pageHead, wide } from '../ui.js';
 import { db } from '../db.js';
 import { getSettings } from '../settings.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { Player } from '../audio.js';
 import { phonemeStatus, events, skills } from '../progress.js';
 import { dayNumber, cardFor } from './cultura.js';
@@ -206,11 +206,11 @@ export async function render(main) {
     const play = h('button', { type: 'button', class: 'pill', style: 'min-height:36px' }, '▶ Escuchar');
     play.onclick = async () => { if (blob) player.play(); else { const { phoneSay } = await import('../voz.js'); phoneSay(text); } };
     const save = h('button', { type: 'button', class: 'pill', style: 'min-height:36px' }, '+ Penumbra');
-    save.onclick = async () => { await db.put('mazo', { front: text, ipa: transcribe(text), back, tag: '#FraseDelDía', audio: blob || undefined, created: Date.now() }); toast('Guardado en Penumbra'); };
+    save.onclick = async () => { await db.put('mazo', { front: text, ipa: ipaFor(text), back, tag: '#FraseDelDía', audio: blob || undefined, created: Date.now() }); toast('Guardado en Penumbra'); };
     right.append(h('section', { class: 'card', style: 'gap:10px' },
       h('span', { class: 'kicker' }, 'FRASE DEL DÍA'),
       h('p', { lang: 'es-AR', style: 'font-family:var(--display);font-size:20px;line-height:1.35;font-weight:600' }, `«${text}»`),
-      h('span', { class: 'ipa', style: 'color:var(--accent)' }, transcribe(text)),
+      h('span', { class: 'ipa', style: 'color:var(--accent)' }, ipaFor(text)),
       back ? h('span', { class: 'small', style: 'color:var(--muted2)' }, back) : '',
       h('div', { class: 'between' }, play, save)));
   }

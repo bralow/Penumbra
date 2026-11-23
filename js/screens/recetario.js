@@ -1,7 +1,7 @@
 import { h, toast } from '../ui.js';
 import { readTabs } from './leer.js';
 import { RECETAS, VERBOS } from '../recetas.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { speak, stopSpeaking } from '../tts.js';
 
@@ -112,11 +112,11 @@ function detail(main, r) {
     const listen = h('button', { type: 'button', class: 'pill', style: 'background:transparent;color:var(--hero-ink);border-color:var(--hero-muted);min-height:40px' }, '▶ Escuchar');
     listen.onclick = () => speak(word);
     const save = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Guardar en Mazo');
-    save.onclick = async () => { await db.put('mazo', { front: word, ipa: transcribe(word), back: `${inf} · to ${en} · tú: ${tu} · ${temps(stepText, 'metric')}`, tag: '#Cocina', created: Date.now() }); toast('Guardado en Penumbra'); };
+    save.onclick = async () => { await db.put('mazo', { front: word, ipa: ipaFor(word), back: `${inf} · to ${en} · tú: ${tu} · ${temps(stepText, 'metric')}`, tag: '#Cocina', created: Date.now() }); toast('Guardado en Penumbra'); };
     panel.replaceChildren(
       h('div', { class: 'row wrap', style: 'gap:12px;align-items:baseline' },
         h('span', { style: 'font-family:var(--display);font-size:28px;font-weight:700' }, word),
-        h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, transcribe(word))),
+        h('span', { class: 'ipa', style: 'color:var(--gold-text)' }, ipaFor(word))),
       h('p', { style: 'font-size:15px' }, h('b', {}, inf), ` · to ${en}`),
       h('p', { style: 'font-size:14px;color:var(--hero-muted)' }, `Imperativo de vos (tú: ${tu}). Se forma con el infinitivo sin la r, con tilde: ${inf} → ${word}.`),
       h('div', { class: 'row wrap' }, listen, save));

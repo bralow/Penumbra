@@ -1,6 +1,6 @@
 import { h, toast, shuffle, pageHead, wide } from '../ui.js';
 import { RULES, toSpanish, FALSE_FRIENDS } from '../cognates.js';
-import { analyzeWord, transcribe } from '../ipa.js';
+import { analyzeWord, ipaFor } from '../ipa.js';
 import { db } from '../db.js';
 import { log } from '../progress.js';
 
@@ -33,11 +33,11 @@ function converter(root) {
     const r = toSpanish(w);
     if (r) {
       const save = h('button', { type: 'button', class: 'pill', style: 'align-self:flex-start;min-height:40px' }, 'Guardar en Mazo');
-      save.onclick = async () => { await db.put('mazo', { front: r.es, ipa: transcribe(r.es), back: `${w} · regla -${r.rule.en} → -${r.rule.es}`, tag: '#Cognados', created: Date.now() }); toast('Guardado en Penumbra'); };
+      save.onclick = async () => { await db.put('mazo', { front: r.es, ipa: ipaFor(r.es), back: `${w} · regla -${r.rule.en} → -${r.rule.es}`, tag: '#Cognados', created: Date.now() }); toast('Guardado en Penumbra'); };
       out.append(h('section', { class: 'card', style: 'gap:8px' },
         h('span', { class: 'kicker' }, `REGLA  -${r.rule.en} → -${r.rule.es}`),
         h('p', { style: 'font-family:var(--display);font-size:32px;font-weight:700', lang: 'es-AR' }, stressed(r.es)),
-        h('p', { class: 'ipa' }, transcribe(r.es)),
+        h('p', { class: 'ipa' }, ipaFor(r.es)),
         h('p', { class: 'muted small' }, 'La sílaba subrayada lleva la fuerza. Es una regla, no una garantía: verificá en el DLE si no estás seguro.'),
         h('div', { class: 'row' }, h('a', { class: 'pill', style: 'min-height:40px;display:flex;align-items:center;text-decoration:none', href: `https://dle.rae.es/${encodeURIComponent(r.es)}`, target: '_blank', rel: 'noopener' }, 'Ver en el DLE ↗'), save)));
     } else if (!ff.length) out.append(h('p', { class: 'muted small' }, 'Ninguna regla coincide con esa terminación.'));

@@ -3,7 +3,7 @@
 // one per card type, scheduled separately.
 import { db } from './db.js';
 import { answer as fsrsAnswer, DEFAULTS } from './fsrs.js';
-import { transcribe } from './ipa.js';
+import { ipaFor } from './ipa.js';
 
 const SKEY = 'penumbra.settings';
 export const TYPES = {
@@ -94,7 +94,7 @@ export async function addNote({ front, back = '', meaning = '', ipa, tag = '', d
   const note = uid(), now = Date.now();
   const cards = types.map((type, i) => ({
     id: `${note}-${i}`, note, deck: d.id, type, front, back, meaning, context,
-    ipa: ipa || transcribe(front), tag, audio: audio || undefined, source: source || undefined,
+    ipa: ipa || ipaFor(front), tag, audio: audio || undefined, source: source || undefined,
     created: now + i, updated: now, state: 'new', reps: 0, lapses: 0, passStreak: 0, suspended: null,
   }));
   for (const c of cards) await db.put('cards', c);

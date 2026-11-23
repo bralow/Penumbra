@@ -1,5 +1,5 @@
 import { h, backHead } from '../ui.js';
-import { transcribe } from '../ipa.js';
+import { ipaFor } from '../ipa.js';
 import { stopSpeaking } from '../tts.js';
 import { showWordPanel, tappableText, markWord, sentenceWith } from '../wordpanel.js';
 
@@ -30,7 +30,7 @@ export async function render(main) {
   function drawPassage() {
     passage.replaceChildren();
     if (view === 'ipa') {
-      passage.append(h('p', { class: 'ipa', style: 'font-size:17px;line-height:1.7' }, transcribe(text)));
+      passage.append(h('p', { class: 'ipa', style: 'font-size:17px;line-height:1.7' }, ipaFor(text)));
       return;
     }
     const p = tappableText(text, (word, b) => { markWord(passage, b); showWord(word); });
