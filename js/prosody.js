@@ -66,6 +66,13 @@ export function prosodyLine(text, { size = 22 } = {}) {
   return p;
 }
 
+// The "Pausas y ritmo" switch used by Sombra and Calentamiento; onChange(on) repaints the sentence.
+export function pausesSwitch(onChange) {
+  const sw = h('button', { type: 'button', role: 'switch', class: 'switch', 'aria-checked': String(showPauses()), 'aria-label': 'Pausas y ritmo' }, h('span', { class: 'knob' }));
+  sw.onclick = () => { const on = !showPauses(); setShowPauses(on); sw.setAttribute('aria-checked', String(on)); onChange(on); };
+  return h('label', { class: 'sb-switch' }, h('span', {}, 'Pausas y ritmo'), sw);
+}
+
 export const pauseLegend = () => h('div', { class: 'pros-legend', role: 'note', 'aria-label': 'Leyenda' },
   h('span', {}, h('b', { class: 'pros-bar' }, '/'), 'pausa corta'),
   h('span', {}, h('b', { class: 'pros-bar major' }, '//'), 'pausa larga'),

@@ -40,9 +40,9 @@ export async function render(main) {
   }
 
   function card(e) {
-    const listen = h('button', { type: 'button', class: 'icon-btn', 'aria-label': `Escuchar ${e.w}` }, iconEl('play'));
+    const listen = h('button', { type: 'button', class: 'round native', style: 'width:42px;height:42px;flex:none', 'aria-label': `Escuchar ${e.w}` }, iconEl('play'));
     listen.onclick = () => speak(e.w);
-    const save = h('button', { type: 'button', class: 'pill', style: 'min-height:40px' }, 'Guardar en Mazo');
+    const save = h('button', { type: 'button', class: 'pill', style: 'min-height:38px;flex:none' }, '+ Penumbra');
     save.onclick = async () => {
       await db.put('mazo', { front: e.w, ipa: ipaFor(e.w), back: `${e.es} (${e.en}) · ${e.ej}`, tag: '#Lunfardo', created: Date.now() });
       toast('Guardado en Penumbra');
@@ -55,9 +55,8 @@ export async function render(main) {
         listen),
       h('div', { class: 'row wrap', style: 'gap:10px' }, meter(e.reg), h('span', { class: 'chip' }, KIND[e.kind])),
       h('p', { style: 'font-size:15px;line-height:1.4' }, e.es, ' ', h('span', { class: 'muted' }, `· ${e.en}`)),
-      h('p', { style: 'font-size:15px;font-style:italic;line-height:1.4', lang: 'es-AR' }, e.ej),
-      h('p', { class: 'muted small' }, e.orig),
-      save);
+      h('p', { class: 'quote-ex', lang: 'es-AR' }, e.ej),
+      h('div', { class: 'between', style: 'align-items:center;flex-wrap:nowrap' }, h('p', { class: 'muted small', style: 'flex:1;min-width:0' }, e.orig), save));
   }
 
   function draw() {
