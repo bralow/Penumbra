@@ -182,12 +182,12 @@ export async function render(main) {
     const actions = h('div', { style: 'display:flex;flex-direction:column;gap:10px;width:100%;max-width:520px;margin:0 auto' });
     stage.replaceChildren(face, actions);
     const listen = (label = '▶ Escuchar', rate = 1) => { const b = h('button', { type: 'button', class: 'pill' }, label); b.onclick = () => playCard(card, rate); return b; };
-    let revealed = false, suggest = null;
+    let revealed = false, suggest = null, revealedAt = 0;
     const picture = () => h('img', { class: 'fc-img', src: URL.createObjectURL(card.image), alt: '' });
 
     function reveal(s) {
       if (revealed) return;
-      revealed = true; suggest = s; stopClock();
+      revealed = true; suggest = s; revealedAt = Date.now(); stopClock();
       // The back: everything on the card (picture, phrase, IPA, meaning, note, example, source) and
       // the dictionaries. Your typed answer's feedback stays. Pronunciar keeps your recording on screen.
       const feedback = [...face.querySelectorAll('.fc-feedback')];
@@ -222,6 +222,18 @@ export async function render(main) {
       if (u.suspended === 'mastered') toast('¡Dominada! Esta tarjeta se retira.');
       show();
     }
+    // Enter in an answer box = «Comprobar». The key press stops at the box, so it can't also reach the
+    // screen's Enter shortcut (accept the suggested grade) and skip the result. Shift+Enter in a textarea
+    // still makes a new line. Some phone keyboards report Enter only as keyCode 13.
+    const enterChecks = (field, fn) => {
+      field.setAttribute('enterkeyhint', 'done');
+      field.addEventListener('keydown', (e) => {
+        const enter = e.key === 'Enter' || e.keyCode === 13;
+        if (!enter || e.shiftKey || e.isComposing) return;
+        e.preventDefault(); e.stopPropagation();
+        if (!field.disabled && !revealed) fn();
+      });
+    };
     const showBtn = (label = 'Mostrar respuesta', fn = () => reveal(null)) => {
       const b = h('button', { type: 'button', class: 'btn', style: 'min-height:58px;font-size:17px' }, label);
       b.onclick = fn; actions.replaceChildren(b); return b;
@@ -243,7 +255,7 @@ export async function render(main) {
         face.append(h('p', { class: 'fc-feedback', style: `color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? (r.accentsOnly ? '¡Bien! Ojo con las tildes.' : '¡Bien!') : `Escribiste: ${input.value || '(nada)'}`));
         reveal(r.ok);
       };
-      input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); check(); } };
+      enterChecks(input, check);
       showBtn('Comprobar', check);
       setTimeout(() => input.focus(), 50);
       startTimer(check);
@@ -260,6 +272,7 @@ export async function render(main) {
         face.append(h('p', { class: 'fc-feedback', style: `color:${r.ok ? 'var(--accent)' : 'var(--gold-text)'}` }, r.ok ? '¡Bien!' : `${r.close ? 'Casi' : 'Compará con la frase'} · escribiste: ${input.value || '(nada)'}`));
         reveal(r.ok ? true : r.close ? null : false);
       };
+      enterChecks(input, check);
       showBtn('Comprobar', check);
       playCard(card);
       startTimer(() => reveal(null));
@@ -285,7 +298,7 @@ export async function render(main) {
         } else {
           const input = h('input', { type: 'text', 'aria-label': 'La palabra que falta', lang: 'es-AR', autocomplete: 'off',
             style: 'min-height:54px;padding:0 16px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:20px;width:100%' });
-          input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); choose(input.value); } };
+          enterChecks(input, () => choose(input.value));
           const ok = h('button', { type: 'button', class: 'btn' }, 'Comprobar'); ok.onclick = () => choose(input.value);
           actions.replaceChildren(input, ok);
         }
@@ -338,6 +351,7 @@ export async function render(main) {
 
     keyHandler = (e) => {
       if (editing) return;
+      if (revealed && (e.key === 'Enter' || e.keyCode === 13) && Date.now() - revealedAt < 600) { e.preventDefault(); return; }
       const typing = e.target && /input|textarea/i.test(e.target.tagName) && !e.target.disabled;
       const a = actionFor(e, revealed ? ['fail', 'pass', 'suggested', 'replay', 'slow', 'edit', 'quit'] : ['show', 'replay', 'slow', 'edit', 'quit']);
       if (!a) { if (!revealed && e.key === 'Enter' && !typing) { e.preventDefault(); const b = actions.querySelector('button'); if (b) b.click(); } return; }

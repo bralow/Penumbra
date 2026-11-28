@@ -1,7 +1,7 @@
 import { applyTheme } from './settings.js';
 
 const SOFT = new Set(['sombra', 'charla', 'entonacion', 'calentamiento', 'vos', 'gramatica', 'oido', 'trabalenguas', 'elision', 'escribir', 'diario', 'leer', 'podcast', 'canciones', 'libros', 'recetas', 'lunfardo', 'cultura', 'perfil']);
-export const APP_VERSION = '2026.11.28-a (nuevas por mazo)';
+export const APP_VERSION = '2026.11.28-b (Enter = Comprobar)';
 import { h } from './ui.js';
 import * as shell from './shell.js';
 
