@@ -649,3 +649,10 @@ main[data-skin="soft"] button.cal-day.today { background: var(--sb-fill); color:
 main[data-skin="soft"] .cal-day.today { outline-color: var(--sb-tint-line); }
 @media (max-width: 480px) { main[data-skin="soft"] > .between:first-child h1 { font-size: 21px !important; } }
 @media (min-width: 1024px) { main[data-screen="lunfardo"] .list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; } }
+/* Mazos: long-press a deck to set its new cards per day */
+.deck-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.dl-list { display: flex; flex-direction: column; gap: 4px; }
+.dl-opt { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+.dl-opt:has(input:checked) { border-color: color-mix(in srgb, var(--accent-raw) 45%, var(--line)); background: color-mix(in srgb, var(--accent-raw) 10%, var(--surface)); font-weight: 600; }
+.dl-opt input { accent-color: var(--accent-raw); width: 18px; height: 18px; margin: 0; }
+.dl-num { min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 16px; width: 140px; }

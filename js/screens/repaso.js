@@ -1,7 +1,7 @@
 // Repaso: today's review, decks, the vault, settings and creating cards by hand.
-import { h, toast, pageHead, wide } from '../ui.js';
+import { h, toast, pageHead, wide, openModal, closeBtn } from '../ui.js';
 import { db } from '../db.js';
-import { buildQueue, decks, deckStats, settings, saveSettings, TYPES, updateCard, pendingMazo, migrateMazo, fillMeanings } from '../penumbra.js';
+import { buildQueue, decks, deckStats, settings, saveSettings, TYPES, updateCard, pendingMazo, migrateMazo, fillMeanings, setDeckNewPerDay } from '../penumbra.js';
 import { human } from '../fsrs.js';
 import { duplicateGroups, merge } from '../cardtools.js';
 import { ACTIONS, keys, setKey, resetKeys, comboOf, label } from '../hotkeys.js';
@@ -10,6 +10,66 @@ let openDeck = null; // phone: the deck open full screen
 let wideDeck = null; // PC: the deck shown beside the list
 const field = 'min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px;width:100%';
 const rerender = () => window.dispatchEvent(new Event('cadencia:rerender'));
+const ownNew = (d) => (Number.isInteger(d.newPerDay) && d.newPerDay >= 0 ? d.newPerDay : null);
+
+// Long press (or right-click) on an element. The click that ends a long press is swallowed.
+function onLongPress(el, fn, ms = 500) {
+  let timer = 0, start = null, fired = false;
+  const cancel = () => { clearTimeout(timer); timer = 0; start = null; };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    fired = false; start = { x: e.clientX, y: e.clientY };
+    timer = setTimeout(() => { fired = true; timer = 0; if (navigator.vibrate) navigator.vibrate(15); fn(); }, ms);
+  });
+  el.addEventListener('pointermove', (e) => { if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancel(); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => el.addEventListener(t, () => { if (timer) cancel(); }));
+  el.addEventListener('contextmenu', (e) => { e.preventDefault(); if (!fired) { cancel(); fired = true; fn(); } });
+  el.addEventListener('click', (e) => { if (fired) { e.preventDefault(); e.stopImmediatePropagation(); fired = false; } }, true);
+}
+
+// Sheet: how many new cards this deck gives you each day.
+function deckLimitSheet(d, fresh, returnTo) {
+  const general = settings().newPerDay;
+  const PRESETS = [0, 3, 5, 10, 15, 20, 30];
+  const cur = ownNew(d);
+  openModal((api) => {
+    api.box.setAttribute('aria-label', `Nuevas por día en ${d.name}`);
+    const choice = cur === null ? 'general' : PRESETS.includes(cur) ? String(cur) : 'custom';
+    const opts = [['general', `Como los demás (comparte las ${general} por día de Ajustes)`], ...PRESETS.map((n) => [String(n), n === 0 ? '0 · pausar las nuevas de este mazo' : `${n} por día`]), ['custom', 'Personalizado…']];
+    const radios = opts.map(([v, l]) => {
+      const r = h('input', { type: 'radio', name: 'deck-new', value: v });
+      r.checked = v === choice;
+      return h('label', { class: 'dl-opt' }, r, h('span', {}, l));
+    });
+    const num = h('input', { type: 'number', min: '0', max: '999', step: '1', inputmode: 'numeric', value: String(cur ?? 7), class: 'dl-num', 'aria-label': 'Número personalizado de nuevas por día', hidden: choice !== 'custom' });
+    const err = h('p', { class: 'small', role: 'status', style: 'color:var(--gold-text);min-height:0' });
+    api.box.addEventListener('change', (e) => { if (e.target.name === 'deck-new') { num.hidden = e.target.value !== 'custom'; if (!num.hidden) { num.focus(); num.select(); } } });
+    const save = h('button', { type: 'button', class: 'btn', style: 'flex:1' }, 'Guardar');
+    const cancel = h('button', { type: 'button', class: 'btn ghost', style: 'flex:1' }, 'Cancelar');
+    cancel.onclick = api.close;
+    save.onclick = async () => {
+      const v = (api.box.querySelector('input[name="deck-new"]:checked') || {}).value || 'general';
+      let n = null;
+      if (v === 'custom') { n = Math.round(Number(num.value)); if (!Number.isFinite(n) || n < 0 || n > 999) { err.textContent = 'Poné un número entre 0 y 999.'; return; } }
+      else if (v !== 'general') n = Number(v);
+      await setDeckNewPerDay(d.id, n);
+      api.close();
+      toast(n === null ? `${d.name}: comparte las nuevas generales` : n === 0 ? `${d.name}: nuevas en pausa` : `${d.name}: ${n} nuevas por día`);
+      rerender();
+    };
+    num.onkeydown = (e) => { if (e.key === 'Enter') save.click(); };
+    api.box.replaceChildren(
+      h('div', { class: 'row', style: 'gap:12px;align-items:flex-start' },
+        h('div', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:4px' },
+          h('span', { class: 'kicker' }, 'NUEVAS POR DÍA'),
+          h('h2', { style: 'font-size:22px;display:flex;align-items:center;gap:8px' }, h('span', { style: `width:10px;height:10px;border-radius:50%;background:${d.color};flex:none` }), d.name)),
+        closeBtn(api.close)),
+      h('p', { class: 'muted small', style: 'line-height:1.45' }, `Quedan ${fresh} tarjeta${fresh === 1 ? '' : 's'} nueva${fresh === 1 ? '' : 's'} en este mazo. Con un número propio, este mazo te da exactamente esas nuevas cada día, aparte de las ${general} que comparten los demás.`),
+      h('div', { class: 'dl-list', role: 'radiogroup', 'aria-label': 'Nuevas por día' }, radios),
+      num, err,
+      h('div', { class: 'row', style: 'gap:8px' }, cancel, save));
+  }, returnTo);
+}
 
 export async function render(main) {
   const [q, ds, stats] = await Promise.all([buildQueue(), decks(), deckStats()]);
@@ -39,7 +99,7 @@ export async function render(main) {
   if (pending.length) left.append(migrateCard(pending));
 
   // Decks
-  left.append(h('span', { class: 'kicker', style: 'margin-top:6px;color:var(--muted)' }, 'TUS MAZOS ACTIVOS'));
+  left.append(h('div', { class: 'between', style: 'margin-top:6px' }, h('span', { class: 'kicker', style: 'color:var(--muted)' }, 'TUS MAZOS ACTIVOS'), ds.length ? h('span', { class: 'muted', style: 'font-size:11px' }, 'Mantené apretado un mazo para elegir sus nuevas por día') : null));
   if (!ds.length) left.append(h('section', { class: 'card' }, h('p', { class: 'muted small', style: 'line-height:1.45' }, 'Todavía no hay tarjetas. Tocá «+ Penumbra» o «Guardar» en cualquier módulo (Lectura, Podcast, Charla, Lunfardo…) y aparecen acá, cada una en el mazo de donde vino.')));
   for (const d of ds) {
     const s = stats.get(d.id) || { total: 0, notes: 0, due: 0, fresh: 0, leech: 0 };
@@ -49,8 +109,11 @@ export async function render(main) {
       h('span', { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:2px' }, h('b', { style: 'font-family:var(--display);font-size:16px' }, d.name), h('span', { class: 'muted small' }, `${s.notes} ${s.notes === 1 ? 'guardada' : 'guardadas'}${s.leech ? ` · ${s.leech} en la bóveda` : ''}`)),
       h('span', { style: 'display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:none' },
         h('span', { class: s.due ? 'tag' : 'tag muted', style: 'padding:3px 10px' }, `${s.due} para hoy`),
-        h('span', { class: 'muted', style: 'font-size:11px' }, `+${s.fresh} nueva${s.fresh === 1 ? '' : 's'}`)));
+        h('span', { class: 'muted', style: 'font-size:11px' }, `+${s.fresh} nueva${s.fresh === 1 ? '' : 's'}${ownNew(d) === null ? '' : ownNew(d) === 0 ? ' · en pausa' : ` · ${ownNew(d)}/día`}`)));
+    b.classList.add('deck-row');
+    b.title = 'Mantené apretado (o clic derecho) para elegir cuántas nuevas por día';
     b.onclick = () => { if (wide()) wideDeck = d.id; else openDeck = d.id; rerender(); };
+    onLongPress(b, () => deckLimitSheet(d, s.fresh, b));
     left.append(b);
   }
 
@@ -72,6 +135,7 @@ export async function render(main) {
   // Settings
   let st = settings();
   const newSel = h('select', { 'aria-label': 'Nuevas por día', style: field }, [5, 10, 15, 20, 30].map((n) => h('option', { value: n }, `${n} nuevas por día`)));
+  if (![5, 10, 15, 20, 30].includes(st.newPerDay)) newSel.append(h('option', { value: st.newPerDay }, `${st.newPerDay} nuevas por día`));
   newSel.value = String(st.newPerDay);
   const timerSel = h('select', { 'aria-label': 'Temporizador', style: field }, [[0, 'Sin temporizador'], [10, '10 segundos'], [20, '20 segundos'], [30, '30 segundos'], [45, '45 segundos']].map(([v, l]) => h('option', { value: v }, l)));
   timerSel.value = String(st.timer);
@@ -171,7 +235,13 @@ async function deckView(main, d, embedded = false) {
     h('div', { style: 'display:flex;flex-direction:column;gap:2px' }, h('span', { class: 'kicker' }, 'VISTA DEL MAZO'), h('h2', { style: 'font-size:22px;display:flex;align-items:center;gap:8px' }, h('span', { style: `width:10px;height:10px;border-radius:50%;background:${d.color}` }), d.name)),
     newCardButton(d.id, '+ En este mazo')));
   else main.append(h('div', { class: 'between' }, back, newCardButton(d.id)), h('h1', {}, d.name));
-  main.append(h('span', { class: 'muted small' }, `${notes.size} ${notes.size === 1 ? 'frase o palabra' : 'frases y palabras'} · tocá una para editarla`));
+  const freshHere = cards.filter((c) => c.state === 'new' && !c.suspended).length;
+  const own = ownNew(d);
+  const limitBtn = h('button', { type: 'button', class: 'pill', style: 'min-height:36px;font-size:12px', 'aria-haspopup': 'dialog' },
+    own === null ? `Nuevas por día: como los demás (${settings().newPerDay})` : own === 0 ? 'Nuevas por día: en pausa' : `Nuevas por día: ${own}`);
+  limitBtn.onclick = () => deckLimitSheet(d, freshHere, limitBtn);
+  main.append(h('div', { class: 'row wrap', style: 'gap:8px;align-items:center' },
+    h('span', { class: 'muted small' }, `${notes.size} ${notes.size === 1 ? 'frase o palabra' : 'frases y palabras'} · tocá una para editarla`), limitBtn));
 
   // Search and duplicates
   const search = h('input', { type: 'search', placeholder: 'Buscar en este mazo…', 'aria-label': 'Buscar en este mazo', style: field });

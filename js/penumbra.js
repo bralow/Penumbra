@@ -58,6 +58,16 @@ export async function mergeSameNameDecks() {
   return changed;
 }
 
+// A deck's own number of new cards per day: an integer (0 = pause its new cards) or null to share the general number.
+export async function setDeckNewPerDay(id, n) {
+  const d = await db.get('decks', id);
+  if (!d) return null;
+  const next = { ...d, updated: Date.now() };
+  if (Number.isInteger(n) && n >= 0) next.newPerDay = n; else delete next.newPerDay;
+  await db.put('decks', next);
+  return next;
+}
+
 export async function decks() {
   return (await db.all('decks')).sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
@@ -199,7 +209,6 @@ export async function buildQueue(now = Date.now()) {
   const log = await todaysLog();
   const seenNotes = new Set(log.map((r) => r.note));
   const seenCards = new Set(log.map((r) => r.card));
-  const newToday = new Set(log.filter((r) => r.wasNew).map((r) => r.card)).size;
   const sod = dayStart(now), eod = dayEnd(now);
 
   const learning = all.filter((c) => c.state === 'learn' || c.state === 'relearn').sort((a, b) => a.due - b.due);
@@ -209,10 +218,27 @@ export async function buildQueue(now = Date.now()) {
     if (usedNotes.has(c.note) || (seenNotes.has(c.note) && !seenCards.has(c.id))) continue; // sibling buried until tomorrow
     usedNotes.add(c.note); reviews.push(c);
   }
+  // New cards, oldest first. A deck with its own daily number (deck.newPerDay, set by long-pressing it in
+  // Mazos) gets exactly that many; the other decks share the general «Tarjetas nuevas por día».
+  const deckList = await db.all('decks');
+  const ownLimit = new Map(deckList.filter((d) => Number.isInteger(d.newPerDay) && d.newPerDay >= 0).map((d) => [d.id, d.newPerDay]));
+  const deckOfCard = new Map((await db.all('cards')).map((c) => [c.id, c.deck]));
+  const usedToday = new Map(); let sharedUsed = 0;
+  for (const id of new Set(log.filter((r) => r.wasNew).map((r) => r.card))) {
+    const dk = deckOfCard.get(id);
+    if (ownLimit.has(dk)) usedToday.set(dk, (usedToday.get(dk) || 0) + 1); else sharedUsed++;
+  }
   const fresh = [];
   for (const c of all.filter((x) => x.state === 'new').sort((a, b) => a.created - b.created)) {
-    if (fresh.length >= Math.max(0, st.newPerDay - newToday)) break;
     if (usedNotes.has(c.note) || seenNotes.has(c.note)) continue;
+    if (ownLimit.has(c.deck)) {
+      const used = usedToday.get(c.deck) || 0;
+      if (used >= ownLimit.get(c.deck)) continue;
+      usedToday.set(c.deck, used + 1);
+    } else {
+      if (sharedUsed >= st.newPerDay) continue;
+      sharedUsed++;
+    }
     usedNotes.add(c.note); fresh.push(c);
   }
   return {
